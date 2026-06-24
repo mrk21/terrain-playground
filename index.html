@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebGL Playground</title>
+  </head>
+  <body>
+    <canvas id="gl"></canvas>
+    <div id="ui">
+      <button data-scene="heightmap3d">地形3D</button>
+      <button data-scene="heightmap">地形2D</button>
+    </div>
+    <div id="hint">ドラッグで移動 / ホイールでズーム / Shift+ドラッグで回転(3D)</div>
+    <div id="hud"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

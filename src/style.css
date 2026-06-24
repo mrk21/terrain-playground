@@ -1,0 +1,81 @@
+:root {
+  color-scheme: dark;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0b0b0e;
+}
+
+#gl {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
+
+#ui {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  gap: 8px;
+  font-family: system-ui, sans-serif;
+}
+
+#ui button {
+  padding: 6px 14px;
+  border: 1px solid #3a3a44;
+  border-radius: 6px;
+  background: #1a1a22;
+  color: #e8e8ef;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+#ui button:hover {
+  border-color: #6b6b78;
+}
+
+#ui button.active {
+  background: #4f46e5;
+  border-color: #4f46e5;
+}
+
+#hint {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #cfcfe0;
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+#hint.hidden {
+  display: none;
+}
+
+#hud {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #cfcfe0;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  pointer-events: none;
+}
