@@ -1,6 +1,7 @@
 import { createProgram } from "../gl/shader";
 import { height } from "../heightmap/height";
 import { heightToColor, MAX_HEIGHT } from "../heightmap/colormap";
+import { attachGestures } from "../input/gestures";
 import type { Scene } from "./scene";
 import vertSrc from "../shaders/tile.vert?raw";
 import fragSrc from "../shaders/tile.frag?raw";
@@ -111,45 +112,41 @@ export function createSceneHeightmap(gl: WebGL2RenderingContext): Scene {
     return { level, ox, oz, tileWorld, texture, lastUsed: frame };
   };
 
-  // --- ビュー状態（ドラッグでパン・ホイールでズーム） ---
+  // --- ビュー状態（1本指/ドラッグでパン・ピンチ/ホイールでズーム） ---
   let centerX = 0;
   let centerZ = 0;
   let viewHeight = DEFAULT_VIEW_HEIGHT;
 
   const canvas = gl.canvas as HTMLCanvasElement;
-  let dragging = false;
-  let lastX = 0;
-  let lastY = 0;
 
-  const onPointerDown = (e: PointerEvent): void => {
-    dragging = true;
-    lastX = e.clientX;
-    lastY = e.clientY;
-    canvas.setPointerCapture(e.pointerId);
+  // 焦点 (fx,fy)（canvas 相対 CSS px）の地点が動かないようズームする。
+  // factor>1 で拡大（viewHeight を縮める）。Google Maps の「指の下が動かない」挙動。
+  const zoomAt = (factor: number, fx: number, fy: number): void => {
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    const wppBefore = viewHeight / h; // 水平も同スケール（halfX = halfY*aspect のため）。
+    const wx = centerX + (fx - w / 2) * wppBefore;
+    const wz = centerZ + (fy - h / 2) * wppBefore;
+    viewHeight = clamp(viewHeight / factor, MIN_VIEW_HEIGHT, MAX_VIEW_HEIGHT);
+    const wppAfter = viewHeight / h;
+    centerX = wx - (fx - w / 2) * wppAfter;
+    centerZ = wz - (fy - h / 2) * wppAfter;
   };
-  const onPointerMove = (e: PointerEvent): void => {
-    if (!dragging) return;
-    const dx = e.clientX - lastX;
-    const dy = e.clientY - lastY;
-    lastX = e.clientX;
-    lastY = e.clientY;
-    // 中身が指に追従するよう中心を逆に動かす（水平・垂直で同じスケール）。
-    const worldPerPx = viewHeight / canvas.clientHeight;
-    centerX -= dx * worldPerPx;
-    centerZ -= dy * worldPerPx;
-  };
-  const onPointerUp = (e: PointerEvent): void => {
-    dragging = false;
-    canvas.releasePointerCapture(e.pointerId);
-  };
-  const onWheel = (e: WheelEvent): void => {
-    e.preventDefault();
-    viewHeight = clamp(viewHeight * Math.exp(e.deltaY * 0.001), MIN_VIEW_HEIGHT, MAX_VIEW_HEIGHT);
-  };
-  canvas.addEventListener("pointerdown", onPointerDown);
-  canvas.addEventListener("pointermove", onPointerMove);
-  canvas.addEventListener("pointerup", onPointerUp);
-  canvas.addEventListener("wheel", onWheel, { passive: false });
+
+  const detachGestures = attachGestures(canvas, {
+    onDrag(dx, dy) {
+      // 中身が指に追従するよう中心を逆に動かす（水平・垂直で同じスケール）。
+      const worldPerPx = viewHeight / canvas.clientHeight;
+      centerX -= dx * worldPerPx;
+      centerZ -= dy * worldPerPx;
+    },
+    onPinch(scale, fx, fy) {
+      zoomAt(scale, fx, fy);
+    },
+    onWheelZoom(deltaY, fx, fy) {
+      zoomAt(Math.exp(-deltaY * 0.001), fx, fy);
+    },
+  });
 
   const hud = document.querySelector<HTMLElement>("#hud");
 
@@ -256,10 +253,7 @@ export function createSceneHeightmap(gl: WebGL2RenderingContext): Scene {
       if (hud) hud.textContent = `lv: ${level} | tiles: ${cache.size}`;
     },
     dispose() {
-      canvas.removeEventListener("pointerdown", onPointerDown);
-      canvas.removeEventListener("pointermove", onPointerMove);
-      canvas.removeEventListener("pointerup", onPointerUp);
-      canvas.removeEventListener("wheel", onWheel);
+      detachGestures();
       for (const [key, tile] of cache) disposeTile(key, tile);
       gl.deleteProgram(program);
       gl.deleteVertexArray(vao);

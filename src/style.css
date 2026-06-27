@@ -14,31 +14,47 @@ body {
   height: 100%;
   overflow: hidden;
   background: #0b0b0e;
+  /* ダブルタップ等でのテキスト選択・コールアウト（コピー等メニュー）を抑制。 */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 #gl {
   display: block;
   width: 100vw;
   height: 100vh;
+  height: 100dvh; /* モバイルのツールバー伸縮に追従（dvh 非対応なら上の 100vh）。 */
+  /* ブラウザのスクロール・ピンチズームを無効化し、ジェスチャを自前で扱う。 */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #ui {
   position: fixed;
-  top: 12px;
-  left: 12px;
+  top: calc(12px + env(safe-area-inset-top));
+  left: calc(12px + env(safe-area-inset-left));
   display: flex;
   gap: 8px;
   font-family: system-ui, sans-serif;
 }
 
 #ui button {
-  padding: 6px 14px;
+  padding: 10px 16px;
   border: 1px solid #3a3a44;
   border-radius: 6px;
   background: #1a1a22;
   color: #e8e8ef;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
+  /* タップ時の遅延・ハイライト・選択・コールアウトを抑える。 */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 #ui button:hover {
@@ -52,8 +68,10 @@ body {
 
 #hint {
   position: fixed;
-  left: 12px;
-  bottom: 12px;
+  left: calc(12px + env(safe-area-inset-left));
+  right: calc(12px + env(safe-area-inset-right));
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  max-width: max-content;
   padding: 4px 10px;
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.45);
@@ -69,8 +87,9 @@ body {
 
 #hud {
   position: fixed;
-  right: 12px;
-  bottom: 12px;
+  /* 操作説明（下部）と重ならないよう右上に置く（左上は切替ボタン）。 */
+  top: calc(12px + env(safe-area-inset-top));
+  right: calc(12px + env(safe-area-inset-right));
   padding: 4px 10px;
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.45);

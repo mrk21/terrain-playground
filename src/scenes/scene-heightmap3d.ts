@@ -2,6 +2,7 @@ import { createProgram } from "../gl/shader";
 import * as mat4 from "../math/mat4";
 import { height } from "../heightmap/height";
 import { MAX_HEIGHT } from "../heightmap/colormap";
+import { attachGestures } from "../input/gestures";
 import type { Scene } from "./scene";
 import vertSrc from "../shaders/terrain.vert?raw";
 import fragSrc from "../shaders/terrain.frag?raw";
@@ -404,53 +405,90 @@ export function createSceneHeightmap3D(gl: WebGL2RenderingContext): Scene {
   };
 
   const canvas = gl.canvas as HTMLCanvasElement;
-  let dragging = false;
-  let rotating = false;
-  let lastX = 0;
-  let lastY = 0;
 
-  const onPointerDown = (e: PointerEvent): void => {
-    dragging = true;
-    rotating = e.shiftKey;
-    lastX = e.clientX;
-    lastY = e.clientY;
-    canvas.setPointerCapture(e.pointerId);
+  // 画面上の点 (fx,fy)（canvas 相対 CSS px）が刺さる地表面 y=TARGET_Y のワールド座標。
+  // ピンチで「指の下が動かない」ようにズーム量を合わせるのに使う。視線が上を向く
+  // （地平線より上）など交わらない場合は null。dist を引数に取り、ズーム前後で使える。
+  const groundUnder = (
+    fx: number,
+    fy: number,
+    dist: number,
+  ): [number, number] | null => {
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    const aspect = w / h;
+    const t2 = Math.tan(FOV / 2);
+    const ndcX = (fx / w) * 2 - 1;
+    const ndcY = 1 - (fy / h) * 2;
+    const cp = Math.cos(pitch);
+    const sp = Math.sin(pitch);
+    // カメラの正規直交基底（yaw,pitch から直接。真上ビューでも退化しない）。
+    const fX = Math.sin(yaw) * cp,
+      fY = -sp,
+      fZ = -Math.cos(yaw) * cp; // forward
+    const rX = Math.cos(yaw),
+      rZ = Math.sin(yaw); // right（y成分は常に0）
+    const uX = Math.sin(yaw) * sp,
+      uY = cp,
+      uZ = -Math.cos(yaw) * sp; // up
+    const ax = ndcX * t2 * aspect;
+    const ay = ndcY * t2;
+    const dx = fX + rX * ax + uX * ay;
+    const dy = fY + uY * ay;
+    const dz = fZ + rZ * ax + uZ * ay;
+    if (dy > -1e-4) return null; // 下を向いていない＝地表と交わらない
+    const ex = target[0] - fX * dist; // eye = target - forward*dist
+    const ey = target[1] - fY * dist;
+    const ez = target[2] - fZ * dist;
+    const tHit = (target[1] - ey) / dy;
+    if (tHit <= 0) return null;
+    return [ex + dx * tHit, ez + dz * tHit];
   };
-  const onPointerMove = (e: PointerEvent): void => {
-    if (!dragging) return;
-    const dx = e.clientX - lastX;
-    const dy = e.clientY - lastY;
-    lastX = e.clientX;
-    lastY = e.clientY;
-    if (rotating) {
-      yaw -= dx * 0.005;
-      pitch = clamp(pitch - dy * 0.005, 0.15, Math.PI / 2);
-      return;
-    }
-    const worldPerPx = (2 * distance * Math.tan(FOV / 2)) / canvas.clientHeight;
-    const fwdX = Math.sin(yaw);
-    const fwdZ = -Math.cos(yaw);
-    const rightX = Math.cos(yaw);
-    const rightZ = Math.sin(yaw);
-    target[0] += (-rightX * dx + fwdX * dy) * worldPerPx;
-    target[2] += (-rightZ * dx + fwdZ * dy) * worldPerPx;
+
+  // factor>1 で拡大（distance を縮める）。焦点 (fx,fy) の地点が動かないよう target を補正。
+  const zoomAt = (factor: number, fx: number, fy: number): void => {
+    const before = groundUnder(fx, fy, distance);
+    distance = clamp(distance / factor, MIN_DISTANCE, MAX_DISTANCE);
+    if (!before) return;
+    const after = groundUnder(fx, fy, distance);
+    if (!after) return;
+    // groundUnder は [x, z] を返す。target の x,z を補正。
+    target[0] += before[0] - after[0];
+    target[2] += before[1] - after[1];
   };
-  const onPointerUp = (e: PointerEvent): void => {
-    dragging = false;
-    canvas.releasePointerCapture(e.pointerId);
-  };
-  const onWheel = (e: WheelEvent): void => {
-    e.preventDefault();
-    distance = clamp(
-      distance * Math.exp(e.deltaY * 0.001),
-      MIN_DISTANCE,
-      MAX_DISTANCE,
-    );
-  };
-  canvas.addEventListener("pointerdown", onPointerDown);
-  canvas.addEventListener("pointermove", onPointerMove);
-  canvas.addEventListener("pointerup", onPointerUp);
-  canvas.addEventListener("wheel", onWheel, { passive: false });
+
+  const detachGestures = attachGestures(canvas, {
+    onDrag(dx, dy, shift) {
+      if (shift) {
+        // デスクトップ：Shift+ドラッグで回転。
+        yaw -= dx * 0.005;
+        pitch = clamp(pitch - dy * 0.005, 0.15, Math.PI / 2);
+        return;
+      }
+      const worldPerPx =
+        (2 * distance * Math.tan(FOV / 2)) / canvas.clientHeight;
+      const fwdX = Math.sin(yaw);
+      const fwdZ = -Math.cos(yaw);
+      const rightX = Math.cos(yaw);
+      const rightZ = Math.sin(yaw);
+      target[0] += (-rightX * dx + fwdX * dy) * worldPerPx;
+      target[2] += (-rightZ * dx + fwdZ * dy) * worldPerPx;
+    },
+    onPinch(scale, fx, fy) {
+      zoomAt(scale, fx, fy);
+    },
+    onTwist(dAngle) {
+      // 2 本指のひねりに合わせて地図を回す。
+      yaw -= dAngle;
+    },
+    onTilt(dy) {
+      // 2 本指を上へ（dy<0）で地平線方向に倒す＝pitch を小さく。下へ戻すと真上ビュー。
+      pitch = clamp(pitch + dy * 0.005, 0.15, Math.PI / 2);
+    },
+    onWheelZoom(deltaY, fx, fy) {
+      zoomAt(Math.exp(-deltaY * 0.001), fx, fy);
+    },
+  });
 
   const hud = document.querySelector<HTMLElement>("#hud");
 
@@ -517,10 +555,7 @@ export function createSceneHeightmap3D(gl: WebGL2RenderingContext): Scene {
         hud.textContent = `nodes: ${renderList.length} / cache: ${cache.size}`;
     },
     dispose() {
-      canvas.removeEventListener("pointerdown", onPointerDown);
-      canvas.removeEventListener("pointermove", onPointerMove);
-      canvas.removeEventListener("pointerup", onPointerUp);
-      canvas.removeEventListener("wheel", onWheel);
+      detachGestures();
       for (const node of cache.values()) disposeNode(node);
       cache.clear();
       gl.deleteBuffer(indexBuffer);

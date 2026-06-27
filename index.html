@@ -2,7 +2,10 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
     <title>WebGL Playground</title>
   </head>
   <body>
@@ -11,7 +14,10 @@
       <button data-scene="heightmap3d">地形3D</button>
       <button data-scene="heightmap">地形2D</button>
     </div>
-    <div id="hint">ドラッグで移動 / ホイールでズーム / Shift+ドラッグで回転(3D)</div>
+    <div id="hint">
+      移動: 1本指・ドラッグ / 拡大縮小: ピンチ・ダブルタップ後に上下・ホイール /
+      回転・傾け: 2本指・Shift+ドラッグ(3D)
+    </div>
     <div id="hud"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
