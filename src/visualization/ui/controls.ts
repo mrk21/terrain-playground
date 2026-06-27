@@ -1,12 +1,12 @@
-import type { HeightMapFunc } from "../heightmap/height";
+import type { HeightMapFunc } from "../../algorithm/height";
 import {
   GENERATORS,
   defaultValues,
   generatorById,
   type HeightMapGenerator,
   type ParamDef,
-} from "../heightmap/generators";
-import { makeSeed } from "../noise/hash-function";
+} from "../../algorithm/generators";
+import { makeSeed } from "../../algorithm/noise/hash-function";
 
 /**
  * 画面上の操作 UI（ジェネレータのタブ・2D/3D トグル・パラメータパネル）を組み立て、

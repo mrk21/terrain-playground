@@ -1,4 +1,4 @@
-import type { HeightMapFunc } from '../heightmap/height'
+import type { HeightMapFunc } from '../../algorithm/height'
 
 /** 描画シーンの共通インターフェイス。 */
 export interface Scene {

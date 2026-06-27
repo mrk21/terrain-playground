@@ -1,10 +1,10 @@
 import './style.css'
-import { createContext, resizeToDisplay } from './gl/context'
-import type { Scene, SceneFactory } from './scenes/scene'
-import { createSceneHeightmap3D } from './scenes/scene-heightmap3d'
-import { createSceneHeightmap } from './scenes/scene-heightmap'
-import { initControls, type ViewKey } from './ui/controls'
-import { initCameraControls } from './ui/camera-controls'
+import { createContext, resizeToDisplay } from './visualization/gl/context'
+import type { Scene, SceneFactory } from './visualization/scenes/scene'
+import { createSceneHeightmap3D } from './visualization/scenes/scene-heightmap3d'
+import { createSceneHeightmap } from './visualization/scenes/scene-heightmap'
+import { initControls, type ViewKey } from './visualization/ui/controls'
+import { initCameraControls } from './visualization/ui/camera-controls'
 
 const canvas = document.querySelector<HTMLCanvasElement>('#gl')!
 const gl = createContext(canvas)

@@ -1,5 +1,5 @@
-import { Rng } from "../math/rng";
-import { Vector2D } from "../math/vector2d";
+import { Rng } from "../../core/math/rng";
+import { Vector2D } from "../../core/math/vector2d";
 import { makeSeed } from "./hash-function";
 import { PerlinNoise } from "./perlin-noise";
 

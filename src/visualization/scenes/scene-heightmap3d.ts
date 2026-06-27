@@ -1,7 +1,7 @@
 import { createProgram } from "../gl/shader";
-import * as mat4 from "../math/mat4";
-import type { HeightMapFunc } from "../heightmap/height";
-import { MAX_HEIGHT } from "../heightmap/colormap";
+import * as mat4 from "../../core/math/mat4";
+import type { HeightMapFunc } from "../../algorithm/height";
+import { MAX_HEIGHT } from "../../core/colormap";
 import { attachGestures } from "../input/gestures";
 import type { Scene } from "./scene";
 import vertSrc from "../shaders/terrain.vert?raw";

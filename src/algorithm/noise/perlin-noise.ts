@@ -1,4 +1,4 @@
-import { diff2d, dot2d, Vector2D } from "../math/vector2d";
+import { diff2d, dot2d, Vector2D } from "../../core/math/vector2d";
 import {
   HashFunction,
   makeHashingHashFunction,

@@ -1,6 +1,6 @@
 import { createProgram } from "../gl/shader";
-import type { HeightMapFunc } from "../heightmap/height";
-import { heightToColor, MAX_HEIGHT } from "../heightmap/colormap";
+import type { HeightMapFunc } from "../../algorithm/height";
+import { heightToColor, MAX_HEIGHT } from "../../core/colormap";
 import { attachGestures } from "../input/gestures";
 import type { Scene } from "./scene";
 import vertSrc from "../shaders/tile.vert?raw";

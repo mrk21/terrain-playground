@@ -4,10 +4,10 @@ Perlin noise では、格子点（lattice）ごとに計算した値を、セル
 応じて混ぜ合わせる。この処理は **2つの役割** に分かれている。
 
 - **補間（interpolation）** … 2つの値 `a`, `b` の間の値を求める。実装は
-  [`interpolate()`](../src/perlin-noise.ts)。
+  [`interpolate()`](../src/algorithm/noise/perlin-noise.ts)。
 - **イージング関数（easing function）** … `t` を `[0,1] → [0,1]` に曲げ直す
   「混ぜ具合のカーブ」。`interpolate` に `f` として渡す。型は
-  [`EasingFunction`](../src/perlin-noise.ts)。
+  [`EasingFunction`](../src/algorithm/noise/perlin-noise.ts)。
 
 ```ts
 type EasingFunction = (t: number) => number;
@@ -158,7 +158,7 @@ export function easeSmootherstep(t: number): number {
 
 セル内のローカル座標 `(tx, ty)`（どちらも 0〜1）と、4頂点の値
 `v00, v10, v01, v11` から内部の点の値を求める。実装は
-[`PerlinNoise.get()`](../src/perlin-noise.ts)。
+[`PerlinNoise.get()`](../src/algorithm/noise/perlin-noise.ts)。
 
 ```
         v00 ──────────── v10      ← 上辺 (y=0)
@@ -295,6 +295,6 @@ smoothstep 系に置き換えられることが多い。
 - `smoothstep` は GLSL/HLSL の組み込み関数 `smoothstep()` と同じ多項式
 - smoothstep ＝ 端点傾き 0 の三次エルミート補間（cubic Hermite, zero tangents）の基底
 - 双線形補間 / 双三次補間（bilinear / bicubic interpolation）は別物（点数と次数が違う）
-- 実装: [src/perlin-noise.ts](../src/perlin-noise.ts) の `interpolate()` /
+- 実装: [src/algorithm/noise/perlin-noise.ts](../src/algorithm/noise/perlin-noise.ts) の `interpolate()` /
   `easeLinear` / `easeSmoothstep` / `easeSmootherstep`、双線形補間は
   `PerlinNoise.get()`

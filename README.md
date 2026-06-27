@@ -29,6 +29,8 @@ open http://localhost:5173
 
 ## 開発方法
 
+### 開発コマンド
+
 ```sh
 # 開発サーバ起動（http://localhost:5173）
 npm run dev
@@ -42,3 +44,32 @@ npm run build
 # ビルド成果物をローカルで確認
 npm run preview
 ```
+
+### ディレクトリ構成
+
+`src/` は「誰が書く層か」を境界にして 3 つに分けている。
+
+```
+src/
+├── algorithm/      # 地形生成アルゴリズム（人間が研究・実装する層）
+│   ├── noise/      #   Perlin / fBm などのノイズ実装
+│   ├── height.ts   #   高さ関数 HeightMapFunc = (x, z) => y の実装
+│   └── generators.ts  # ジェネレータ（パラメータ定義 + ファクトリ）のレジストリ
+├── visualization/  # 描画・UI（メッシュ生成・レンダリング・操作。AI 生成で広げる層）
+│   ├── scenes/     #   2D/3D シーンと LOD
+│   ├── gl/         #   WebGL2 ラッパ
+│   ├── ui/         #   タブ・パラメータパネル・カメラ操作
+│   ├── input/      #   ジェスチャ入力
+│   └── shaders/    #   GLSL シェーダ
+├── core/           # 両層が依存する基盤（基本的な数学 util、共有ドメイン定数を含む colormap）
+└── main.ts         # 上記を配線するエントリーポイント
+```
+
+依存方向は `visualization → algorithm → core` の一方向で、`algorithm` は `visualization` に依存しない。
+
+**新しい地形アルゴリズムを足すとき**は `algorithm/` だけ触ればよい:
+
+1. `algorithm/height.ts` に `makeXxxHeightMapFunc()`（`HeightMapFunc` を返す）を書く。
+2. `algorithm/generators.ts` の `GENERATORS` に 1 エントリ（id・ラベル・パラメータ定義・`make()`）を追加する。
+
+UI（タブ・スライダー）は `GENERATORS` の定義から自動で組み立てられるので、描画・UI 側のコードを書く必要はない。

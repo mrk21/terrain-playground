@@ -11,7 +11,7 @@ Perlin noise（gradient noise）では、格子の各頂点に **疑似ランダ
 
 - 勾配に求められる性質は **「単位長」「球面上で一様」「格子点ごとに無相関な疑似ランダム」「seed で再現可能」**。
 - 2D は `角度 = 2π·hash` → `(cos, sin)` で **円周上一様**になり簡単。実装は
-  [`PerlinNoise.grad()`](../src/perlin-noise.ts)。
+  [`PerlinNoise.grad()`](../src/algorithm/noise/perlin-noise.ts)。
 - **3D 以上で「角度を増やすだけ」はダメ**。球面座標で角度を一様に振ると `sin` 重みを無視し、**極に偏る**。
 - **回転行列で作るのも楽にならない**。オイラー角を一様に振ると SO(3) の Haar 測度（`sin β` 重み）を
   無視することになり、結局**球面座標と同じ偏り**が同じ形で出る。しかも高次元ほど不利。
@@ -228,5 +228,5 @@ Ken Perlin の improved noise（2002）は乱数方向を作らず、**立方体
 - Muller (1959) / Marsaglia (1972) — n 次元球面上の一様サンプリング（ガウス正規化法）
 - Shoemake, *"Uniform Random Rotations"* (Graphics Gems III, 1992) — 一様クォータニオン生成
 - Box–Muller 変換 — 一様乱数からの正規乱数生成
-- 実装: [src/perlin-noise.ts](../src/perlin-noise.ts) の `PerlinNoise.grad()` / `normalize()`
+- 実装: [src/algorithm/noise/perlin-noise.ts](../src/algorithm/noise/perlin-noise.ts) の `PerlinNoise.grad()` / `normalize()`
 - 関連: [interpolation.md](./interpolation.md)（補間） / [random-access-prng.md](./random-access-prng.md)（ハッシュ）

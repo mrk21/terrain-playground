@@ -4,7 +4,7 @@ import {
   makePerlinHeightMapFunc,
   type HeightMapFunc,
 } from "./height";
-import { makeSeed } from "../noise/hash-function";
+import { makeSeed } from "./noise/hash-function";
 
 /**
  * ジェネレータ（高さ関数のファクトリ）と、その調整可能なパラメータを

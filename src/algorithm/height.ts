@@ -1,6 +1,6 @@
-import { FBM } from "../noise/fbm";
-import { PerlinNoise } from "../noise/perlin-noise";
-import { MAX_HEIGHT } from "./colormap";
+import { FBM } from "./noise/fbm";
+import { PerlinNoise } from "./noise/perlin-noise";
+import { MAX_HEIGHT } from "../core/colormap";
 
 /**
  * ハイトマップの高さ関数の型。

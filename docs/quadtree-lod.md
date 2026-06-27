@@ -4,15 +4,15 @@
 このリポジトリでは **2D（俯瞰）** と **3D（地形メッシュ）** の両方で使っているが、
 中身はだいぶ違う。まず共通の考え方を押さえてから、2つの実装を見ていく。
 
-- 2D: [src/scenes/scene-heightmap.ts](../src/scenes/scene-heightmap.ts)（タイルピラミッド）
-- 3D: [src/scenes/scene-heightmap3d.ts](../src/scenes/scene-heightmap3d.ts)（適応的四分木）
+- 2D: [src/visualization/scenes/scene-heightmap.ts](../src/visualization/scenes/scene-heightmap.ts)（タイルピラミッド）
+- 3D: [src/visualization/scenes/scene-heightmap3d.ts](../src/visualization/scenes/scene-heightmap3d.ts)（適応的四分木）
 
 ---
 
 ## 0. なぜ LOD が要るのか
 
 地形は理屈の上では「無限に細かい」。高さ関数 `height(x, z)` はワールド座標の**どんな細かさ**でも
-値を返せる（[height.ts](../src/heightmap/height.ts)）。これをそのまま描こうとすると 2 つの問題が出る。
+値を返せる（[height.ts](../src/algorithm/height.ts)）。これをそのまま描こうとすると 2 つの問題が出る。
 
 - **広く引いて見るとき**: 画面に映るワールドが広大なので、1 ピクセルに何百テクセル／三角形分もの
   地形が詰まる。全部を最大解像度で作ると、見えもしない細かさのために大量のメモリと計算を使う。
@@ -99,7 +99,7 @@ render() {
 
 ## 2. 2D シーン — タイルピラミッド（Google Maps 方式）
 
-[scene-heightmap.ts](../src/scenes/scene-heightmap.ts)。真上から見た俯瞰なので話が単純で、
+[scene-heightmap.ts](../src/visualization/scenes/scene-heightmap.ts)。真上から見た俯瞰なので話が単純で、
 **全画面で 1 つのレベルを選び**、そのレベルのタイルを敷き詰める（＝Web 地図のタイル方式）。
 
 ```
@@ -165,7 +165,7 @@ const wx = ox + (i / (TILE_RES - 1)) * tileWorld;
 
 ## 3. 3D シーン — 適応的四分木 ＋ 視錐台カリング
 
-[scene-heightmap3d.ts](../src/scenes/scene-heightmap3d.ts)。透視投影では**手前は大きく・奥は小さく**
+[scene-heightmap3d.ts](../src/visualization/scenes/scene-heightmap3d.ts)。透視投影では**手前は大きく・奥は小さく**
 映るので、「全画面で 1 レベル」では破綻する。手前は細かく、奥は粗く、と**場所ごとに深さを変える**
 本物の四分木 LOD が要る。
 
@@ -303,7 +303,7 @@ index バッファでは地表（64×64×2 三角形）に続けて外周（`per
 
 いじると挙動が変わる主な定数。
 
-### 2D — [scene-heightmap.ts](../src/scenes/scene-heightmap.ts)
+### 2D — [scene-heightmap.ts](../src/visualization/scenes/scene-heightmap.ts)
 
 | 定数 | 値 | 意味 |
 | --- | --- | --- |
@@ -314,7 +314,7 @@ index バッファでは地表（64×64×2 三角形）に続けて外周（`per
 | `KEEP_COARSER` | 3 | 何段ぶん粗いタイルをフォールバックに残すか |
 | `BUDGET_PER_FRAME` | 3 | 1F に生成するタイル数 |
 
-### 3D — [scene-heightmap3d.ts](../src/scenes/scene-heightmap3d.ts)
+### 3D — [scene-heightmap3d.ts](../src/visualization/scenes/scene-heightmap3d.ts)
 
 | 定数 | 値 | 意味 |
 | --- | --- | --- |
@@ -337,8 +337,8 @@ index バッファでは地表（64×64×2 三角形）に続けて外周（`per
   （ズームレベル z、タイル座標 x/y、`2^z` で枚数が増える）。
 - スカートによるクラック対策は chunked LOD 系（GeoClipmap, CDLOD など）で広く使われる手法。
 - 実装:
-  - 2D タイル: [src/scenes/scene-heightmap.ts](../src/scenes/scene-heightmap.ts)
-  - 3D 四分木: [src/scenes/scene-heightmap3d.ts](../src/scenes/scene-heightmap3d.ts)
-  - 高さ関数: [src/heightmap/height.ts](../src/heightmap/height.ts) / 色: [src/heightmap/colormap.ts](../src/heightmap/colormap.ts)
+  - 2D タイル: [src/visualization/scenes/scene-heightmap.ts](../src/visualization/scenes/scene-heightmap.ts)
+  - 3D 四分木: [src/visualization/scenes/scene-heightmap3d.ts](../src/visualization/scenes/scene-heightmap3d.ts)
+  - 高さ関数: [src/algorithm/height.ts](../src/algorithm/height.ts) / 色: [src/core/colormap.ts](../src/core/colormap.ts)
 - 関連メモ: [interpolation.md](interpolation.md)（補間）, [gradient-vectors.md](gradient-vectors.md)（勾配ベクトル）,
   [random-access-prng.md](random-access-prng.md)（乱数）
