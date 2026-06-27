@@ -1,4 +1,4 @@
-# terrain-generation-prototyping-js
+# terrain-playground
 
 Vite + TypeScript + 素の WebGL2 による**地形生成（プロシージャル地形）の実験用プロジェクト**。
 Perlin ノイズ / fBm でハイトマップを生成し、クアッドツリー LOD で 2D（俯瞰）/ 3D（地形メッシュ）に描画する。
