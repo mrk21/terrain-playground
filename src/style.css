@@ -32,15 +32,45 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-#ui {
+/* 左上の操作パネル（タブ → 2D/3D トグル → パラメータ開閉 → パラメータを縦に積む）。 */
+#panel {
   position: fixed;
   top: calc(12px + env(safe-area-inset-top));
   left: calc(12px + env(safe-area-inset-left));
   display: flex;
+  flex-direction: column;
   gap: 8px;
+  max-width: min(280px, calc(100vw - 24px));
   font-family: system-ui, sans-serif;
 }
 
+/* パラメータフォームの開閉アイコン（右列上部・見た目は .cam-btn）。開いている間は強調。 */
+#params-toggle.active {
+  background: #4f46e5;
+  border-color: #4f46e5;
+}
+
+/* 設定項目のないジェネレータ（Island）では無効化（半透明）。位置は保つ。 */
+#params-toggle:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+#params-toggle:disabled:hover {
+  border-color: #3a3a44;
+}
+
+#params.hidden {
+  display: none;
+}
+
+#tabs,
+#ui {
+  display: flex;
+  gap: 8px;
+}
+
+#tabs button,
 #ui button {
   padding: 10px 16px;
   border: 1px solid #3a3a44;
@@ -57,44 +87,187 @@ body {
   -webkit-touch-callout: none;
 }
 
+#tabs button:hover,
 #ui button:hover {
   border-color: #6b6b78;
 }
 
+#tabs button.active,
 #ui button.active {
   background: #4f46e5;
   border-color: #4f46e5;
 }
 
-#hint {
+/* パラメータパネル（seed / zoom / octaves … の行）。 */
+#params:empty {
+  display: none;
+}
+
+#params {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #cfcfe0;
+  font-size: 12px;
+}
+
+.param-row {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.param-row label {
+  color: #cfcfe0;
+}
+
+.param-row input[type="range"] {
+  width: 100%;
+  accent-color: #4f46e5;
+  touch-action: manipulation;
+}
+
+.param-value {
+  min-width: 36px;
+  text-align: right;
+  font-family: ui-monospace, monospace;
+  color: #e8e8ef;
+}
+
+.param-seed {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #3a3a44;
+  border-radius: 4px;
+  background: #1a1a22;
+  color: #e8e8ef;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.dice {
+  padding: 4px 8px;
+  border: 1px solid #3a3a44;
+  border-radius: 4px;
+  background: #1a1a22;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dice:hover {
+  border-color: #6b6b78;
+}
+
+.reset {
+  margin-top: 2px;
+  padding: 6px 10px;
+  border: 1px solid #3a3a44;
+  border-radius: 4px;
+  background: #1a1a22;
+  color: #e8e8ef;
+  cursor: pointer;
+  font-size: 12px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.reset:hover {
+  border-color: #6b6b78;
+}
+
+/* 画面下：性能 HUD（上）と操作説明（下）を縦に積む。 */
+#bottom {
   position: fixed;
   left: calc(12px + env(safe-area-inset-left));
   right: calc(12px + env(safe-area-inset-right));
   bottom: calc(12px + env(safe-area-inset-bottom));
-  max-width: max-content;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  /* 下の地形をドラッグできるよう、クリックは透過させる。 */
+  pointer-events: none;
+}
+
+#hint {
+  max-width: 100%;
   padding: 4px 10px;
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.45);
   color: #cfcfe0;
   font-family: system-ui, sans-serif;
   font-size: 12px;
-  pointer-events: none;
 }
 
 #hint.hidden {
   display: none;
 }
 
-#hud {
+/* 右列：パラメータ開閉・方位磁針・初期位置リセット。
+   先頭をフォーム上端（2D/3D 行の下）に合わせる。top は controls.ts が実測で上書きするが、
+   読み込み直後のチラつき防止に概算値（タブ行＋2D/3D 行＋gap）を入れておく。 */
+#camera {
   position: fixed;
-  /* 操作説明（下部）と重ならないよう右上に置く（左上は切替ボタン）。 */
-  top: calc(12px + env(safe-area-inset-top));
   right: calc(12px + env(safe-area-inset-right));
+  top: calc(108px + env(safe-area-inset-top));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.cam-btn {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid #3a3a44;
+  border-radius: 50%;
+  background: rgba(26, 26, 34, 0.8);
+  color: #e8e8ef;
+  cursor: pointer;
+  /* タップ時の遅延・ハイライト・選択を抑える。 */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.cam-btn:hover {
+  border-color: #6b6b78;
+}
+
+.cam-btn svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+/* 針は中心まわりに回す（毎フレーム JS で角度を更新）。 */
+.compass-needle {
+  transform-origin: 50% 50%;
+}
+
+/* 性能 HUD（#bottom 内で操作説明の上に並ぶ）。 */
+#hud {
+  max-width: 100%;
   padding: 4px 10px;
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.45);
   color: #cfcfe0;
   font-family: ui-monospace, monospace;
   font-size: 12px;
-  pointer-events: none;
+}
+
+/* HUD が空のときは枠を出さない（地形/操作説明をふさがない）。 */
+#hud:empty {
+  display: none;
 }

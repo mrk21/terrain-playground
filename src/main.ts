@@ -3,42 +3,44 @@ import { createContext, resizeToDisplay } from './gl/context'
 import type { Scene, SceneFactory } from './scenes/scene'
 import { createSceneHeightmap3D } from './scenes/scene-heightmap3d'
 import { createSceneHeightmap } from './scenes/scene-heightmap'
+import { initControls, type ViewKey } from './ui/controls'
+import { initCameraControls } from './ui/camera-controls'
 
 const canvas = document.querySelector<HTMLCanvasElement>('#gl')!
 const gl = createContext(canvas)
 
-const factories: Record<string, SceneFactory> = {
-  heightmap3d: createSceneHeightmap3D,
-  heightmap: createSceneHeightmap,
+// ビュー（2D/3D）ごとのシーンファクトリ。どちらも高さ関数を受け取る。
+const factories: Record<ViewKey, SceneFactory> = {
+  '3d': createSceneHeightmap3D,
+  '2d': createSceneHeightmap,
 }
 
-let current: Scene = createSceneHeightmap3D(gl)
-let currentKey = 'heightmap3d'
+let current: Scene
 
-function switchScene(key: string): void {
-  const factory = factories[key]
-  if (!factory || key === currentKey) return
-  current.dispose()
-  current = factory(gl)
-  currentKey = key
-  updateButtons()
-}
+// UI（タブ・2D/3D・パラメータ）を組み立てる。状態変化はコールバックで受ける。
+const { view, height } = initControls({
+  // ビュー切替はシーン型が変わるので作り直す。
+  onView(nextView, nextHeight) {
+    current.dispose()
+    current = factories[nextView](gl, nextHeight)
+  },
+  // ジェネレータ/パラメータ変更はカメラを保ったまま反映する。
+  onHeight(nextHeight) {
+    current.setHeight(nextHeight)
+  },
+})
 
-// --- UI（シーン切り替えボタン） ---
-const buttons = [...document.querySelectorAll<HTMLButtonElement>('#ui button')]
-const hint = document.querySelector<HTMLElement>('#hint')
-// マウス操作のヒントは、パン・ズームできるシーンでのみ表示する。
-const scenesWithControls = new Set(['heightmap3d', 'heightmap'])
-function updateButtons(): void {
-  for (const btn of buttons) {
-    btn.classList.toggle('active', btn.dataset.scene === currentKey)
-  }
-  hint?.classList.toggle('hidden', !scenesWithControls.has(currentKey))
-}
-for (const btn of buttons) {
-  btn.addEventListener('click', () => switchScene(btn.dataset.scene ?? ''))
-}
-updateButtons()
+current = factories[view](gl, height)
+
+// 方位磁針・初期位置リセット。カメラ操作は現在のシーンに委ねる。
+const camera = initCameraControls({
+  onResetView() {
+    current.resetView()
+  },
+  onResetNorth() {
+    current.resetNorth()
+  },
+})
 
 // --- 描画ループ ---
 let startTime: number | null = null
@@ -49,6 +51,7 @@ function frame(now: number): void {
   resizeToDisplay(canvas)
   gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight)
   current.render(time)
+  camera.setHeading(current.getHeading())
 
   requestAnimationFrame(frame)
 }

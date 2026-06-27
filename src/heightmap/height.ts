@@ -21,8 +21,8 @@ export type HeightMapFunc = (x: number, z: number) => number;
  */
 export function makeIslandHeightMapFunc(): HeightMapFunc {
   return (x, z) => {
-    const cx = x - 50;
-    const cz = z - 50;
+    const cx = x;
+    const cz = z;
     const dist = Math.sqrt(cx * cx + cz * cz) / 70; // 中心 0 → 端 ~1
     const island = 1 - dist;
     const ripple = Math.sin(x * 0.3) * Math.cos(z * 0.3) * 0.08;
@@ -70,6 +70,3 @@ export function makeFbmHeightMapFunc({
     return value * MAX_HEIGHT;
   };
 }
-
-/** 現在使用する高さ関数。差し替えたいときはここを別の make 関数に変える。 */
-export const height: HeightMapFunc = makeFbmHeightMapFunc();

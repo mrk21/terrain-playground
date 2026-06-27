@@ -1,6 +1,6 @@
 import { createProgram } from "../gl/shader";
 import * as mat4 from "../math/mat4";
-import { height } from "../heightmap/height";
+import type { HeightMapFunc } from "../heightmap/height";
 import { MAX_HEIGHT } from "../heightmap/colormap";
 import { attachGestures } from "../input/gestures";
 import type { Scene } from "./scene";
@@ -98,67 +98,6 @@ interface NodeMesh {
   heights: Float32Array; // 真の高さ(0..128)。色はフラグメントで決める。
 }
 
-/** 原点 (ox,oz)・一辺 size のノードのメッシュを LEAF_GRID で作る。 */
-function buildNodeMesh(ox: number, oz: number, size: number): NodeMesh {
-  const spacing = size / LEAF_GRID;
-
-  // 縁を 1 つ含む高さグリッド（(N+2)²）。法線の境界一致のため。
-  const B = N + 2;
-  const hb = new Float32Array(B * B);
-  for (let j = -1; j <= N; j++) {
-    const wz = oz + j * spacing;
-    for (let i = -1; i <= N; i++) {
-      const wx = ox + i * spacing;
-      hb[(j + 1) * B + (i + 1)] = clampHeight(height(wx, wz));
-    }
-  }
-  const at = (i: number, j: number): number => hb[(j + 1) * B + (i + 1)];
-
-  const peri = perimeterIndices();
-  const vcount = N * N + peri.length;
-  const positions = new Float32Array(vcount * 3);
-  const normals = new Float32Array(vcount * 3);
-  const heights = new Float32Array(vcount);
-
-  for (let j = 0; j < N; j++) {
-    for (let i = 0; i < N; i++) {
-      const idx = j * N + i;
-      const y = at(i, j);
-      positions[idx * 3] = ox + i * spacing;
-      positions[idx * 3 + 1] = y * HEIGHT_SCALE;
-      positions[idx * 3 + 2] = oz + j * spacing;
-
-      const dhdx =
-        ((at(i + 1, j) - at(i - 1, j)) * HEIGHT_SCALE) / (2 * spacing);
-      const dhdz =
-        ((at(i, j + 1) - at(i, j - 1)) * HEIGHT_SCALE) / (2 * spacing);
-      const nx = -dhdx;
-      const nz = -dhdz;
-      const len = Math.hypot(nx, 1, nz) || 1;
-      normals[idx * 3] = nx / len;
-      normals[idx * 3 + 1] = 1 / len;
-      normals[idx * 3 + 2] = nz / len;
-
-      heights[idx] = y;
-    }
-  }
-
-  // スカート：外周頂点を真下に落としたコピー。
-  for (let k = 0; k < peri.length; k++) {
-    const s = peri[k];
-    const d = N * N + k;
-    positions[d * 3] = positions[s * 3];
-    positions[d * 3 + 1] = positions[s * 3 + 1] - SKIRT_DEPTH;
-    positions[d * 3 + 2] = positions[s * 3 + 2];
-    normals[d * 3] = normals[s * 3];
-    normals[d * 3 + 1] = normals[s * 3 + 1];
-    normals[d * 3 + 2] = normals[s * 3 + 2];
-    heights[d] = heights[s];
-  }
-
-  return { positions, normals, heights };
-}
-
 /** 列優先 mvp から視錐台の6平面 [a,b,c,d]×6 を out(Float32Array 24) に取り出す。 */
 function extractPlanes(m: Float32Array, out: Float32Array): void {
   const r00 = m[0],
@@ -236,7 +175,74 @@ interface TerrainNode {
 const nodeKey = (depth: number, nx: number, nz: number): string =>
   `${depth}:${nx}:${nz}`;
 
-export function createSceneHeightmap3D(gl: WebGL2RenderingContext): Scene {
+export function createSceneHeightmap3D(
+  gl: WebGL2RenderingContext,
+  heightFunc: HeightMapFunc,
+): Scene {
+  // 高さ関数は setHeight() で差し替えられる。メッシュはこの関数でサンプリングする。
+  let height = heightFunc;
+
+  /** 原点 (ox,oz)・一辺 size のノードのメッシュを LEAF_GRID で作る。 */
+  const buildNodeMesh = (ox: number, oz: number, size: number): NodeMesh => {
+    const spacing = size / LEAF_GRID;
+
+    // 縁を 1 つ含む高さグリッド（(N+2)²）。法線の境界一致のため。
+    const B = N + 2;
+    const hb = new Float32Array(B * B);
+    for (let j = -1; j <= N; j++) {
+      const wz = oz + j * spacing;
+      for (let i = -1; i <= N; i++) {
+        const wx = ox + i * spacing;
+        hb[(j + 1) * B + (i + 1)] = clampHeight(height(wx, wz));
+      }
+    }
+    const at = (i: number, j: number): number => hb[(j + 1) * B + (i + 1)];
+
+    const peri = perimeterIndices();
+    const vcount = N * N + peri.length;
+    const positions = new Float32Array(vcount * 3);
+    const normals = new Float32Array(vcount * 3);
+    const heights = new Float32Array(vcount);
+
+    for (let j = 0; j < N; j++) {
+      for (let i = 0; i < N; i++) {
+        const idx = j * N + i;
+        const y = at(i, j);
+        positions[idx * 3] = ox + i * spacing;
+        positions[idx * 3 + 1] = y * HEIGHT_SCALE;
+        positions[idx * 3 + 2] = oz + j * spacing;
+
+        const dhdx =
+          ((at(i + 1, j) - at(i - 1, j)) * HEIGHT_SCALE) / (2 * spacing);
+        const dhdz =
+          ((at(i, j + 1) - at(i, j - 1)) * HEIGHT_SCALE) / (2 * spacing);
+        const nx = -dhdx;
+        const nz = -dhdz;
+        const len = Math.hypot(nx, 1, nz) || 1;
+        normals[idx * 3] = nx / len;
+        normals[idx * 3 + 1] = 1 / len;
+        normals[idx * 3 + 2] = nz / len;
+
+        heights[idx] = y;
+      }
+    }
+
+    // スカート：外周頂点を真下に落としたコピー。
+    for (let k = 0; k < peri.length; k++) {
+      const s = peri[k];
+      const d = N * N + k;
+      positions[d * 3] = positions[s * 3];
+      positions[d * 3 + 1] = positions[s * 3 + 1] - SKIRT_DEPTH;
+      positions[d * 3 + 2] = positions[s * 3 + 2];
+      normals[d * 3] = normals[s * 3];
+      normals[d * 3 + 1] = normals[s * 3 + 1];
+      normals[d * 3 + 2] = normals[s * 3 + 2];
+      heights[d] = heights[s];
+    }
+
+    return { positions, normals, heights };
+  };
+
   const program = createProgram(gl, vertSrc, fragSrc);
   const uMvp = gl.getUniformLocation(program, "uMvp");
 
@@ -286,11 +292,17 @@ export function createSceneHeightmap3D(gl: WebGL2RenderingContext): Scene {
   };
 
   // --- カメラ状態（ドラッグでパン・ホイールでズーム・Shift+ドラッグで回転） ---
-  let yaw = 0; // 2D と同じ向き（軸そろい）。回転していると斜めに見えるため。
-  let pitch = Math.PI / 2; // 初期は真上から見下ろす（2D と同じ向き）
+  // 初期値（リセット用に保持）。yaw=0 で北が上、pitch=PI/2 で真上から見下ろす。
+  const INIT_YAW = 0; // 2D と同じ向き（軸そろい）。回転していると斜めに見えるため。
+  const INIT_PITCH = Math.PI / 2; // 初期は真上から見下ろす（2D と同じ向き）
   // 真上ビューの見える縦幅 = 2*distance*tan(FOV/2)。これを 2D の表示高さ(200) に合わせる。
-  let distance = 200 / (2 * Math.tan(FOV / 2));
-  const target: [number, number, number] = [0, TARGET_Y, 0];
+  const INIT_DISTANCE = 200 / (2 * Math.tan(FOV / 2));
+  const INIT_TARGET: readonly [number, number, number] = [0, TARGET_Y, 0];
+
+  let yaw = INIT_YAW;
+  let pitch = INIT_PITCH;
+  let distance = INIT_DISTANCE;
+  const target: [number, number, number] = [...INIT_TARGET];
   let eyeX = 0;
   let eyeY = 0;
   let eyeZ = 0;
@@ -553,6 +565,28 @@ export function createSceneHeightmap3D(gl: WebGL2RenderingContext): Scene {
 
       if (hud)
         hud.textContent = `nodes: ${renderList.length} / cache: ${cache.size}`;
+    },
+    setHeight(next) {
+      height = next;
+      // 既存ノードは古い高さ関数で焼かれているので破棄。次フレームで生成し直す。
+      for (const node of cache.values()) disposeNode(node);
+      cache.clear();
+    },
+    resetView() {
+      yaw = INIT_YAW;
+      pitch = INIT_PITCH;
+      distance = INIT_DISTANCE;
+      target[0] = INIT_TARGET[0];
+      target[1] = INIT_TARGET[1];
+      target[2] = INIT_TARGET[2];
+    },
+    resetNorth() {
+      // 位置・ズームは保ち、向きだけ北上・真上に戻す。
+      yaw = INIT_YAW;
+      pitch = INIT_PITCH;
+    },
+    getHeading() {
+      return yaw;
     },
     dispose() {
       detachGestures();
