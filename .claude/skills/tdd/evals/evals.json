@@ -1,0 +1,29 @@
+{
+  "skill_name": "tdd",
+  "evals": [
+    {
+      "id": 0,
+      "name": "vector2d-normalize",
+      "prompt": "core/math の vector2d に、ベクトルを正規化する normalize2d を足したい。長さ1のベクトルを返すやつ。テスト書きながら追加して。",
+      "expected_output": "純粋 core ロジックの素直な TDD。vector2d.ts に normalize2d を追加し、隣に vector2d.test.ts を新規作成。RED（失敗するテスト→確認）→GREEN（最小実装）→REFACTOR の順。test:run 全緑 / tsc 0 / biome check クリーン。ゼロベクトルの扱いなど境界もテスト。",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 1,
+      "name": "interpolation-easing",
+      "prompt": "algorithm/noise/interpolation に二次のイージングを足したい。easeInQuad（f(t)=t²）と easeOutQuad（f(t)=1-(1-t)²）。テストファーストで頼む。",
+      "expected_output": "純粋 algorithm ロジックの TDD。interpolation.ts に 2 関数を追加し interpolation.test.ts を新規作成。既存の EasingFunction 契約（f(0)=0, f(1)=1）を満たすことをテスト。test:run 全緑 / tsc 0 / biome check クリーン。",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 2,
+      "name": "scene-zoom-extract",
+      "prompt": "scene-heightmap3d.ts のカメラのズーム周り、ホイールの deltaY からズーム倍率を出す計算（Math.exp(-deltaY*0.001) みたいなやつ）と、距離を MIN_DISTANCE〜MAX_DISTANCE にクランプする処理が WebGL のシーンコードに直書きされててテストできない。純粋関数に切り出してテストを付けたい。",
+      "expected_output": "可視化コードからの抽出 TDD。ズーム倍率変換と距離クランプを引数→戻り値だけの純粋関数として切り出し（行き先は汎用なら core、シーン固有なら visualization 内の純粋ヘルパ。algorithm には入れない）、その純粋関数を TDD。scene-heightmap3d.ts は抽出関数を呼ぶ形にリファクタし WebGL グルーは薄く保つ。新しい純粋関数にテストが付き、WebGL/DOM はテストしない。tsc 0 / test:run 全緑 / biome check クリーン。",
+      "files": [],
+      "assertions": []
+    }
+  ]
+}
