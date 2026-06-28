@@ -7,6 +7,7 @@ import {
 } from "../../algorithm/generators";
 import type { HeightMapFunc } from "../../algorithm/height";
 import { makeSeed } from "../../algorithm/noise/hash-function";
+import { throwOnNullable } from "../../core/assert";
 
 /**
  * 画面上の操作 UI（ジェネレータのタブ・2D/3D トグル・パラメータパネル）を組み立て、
@@ -70,12 +71,26 @@ export function initControls(opts: ControlsOptions): ControlsHandle {
   };
 
   // --- DOM コンテナ ---
-  const tabsEl = document.querySelector("#tabs")!;
-  const viewEl = document.querySelector("#ui")!;
-  const paramsEl = document.querySelector("#params")!;
-  const paramsToggle =
-    document.querySelector<HTMLButtonElement>("#params-toggle")!;
-  const cameraEl = document.querySelector<HTMLElement>("#camera")!;
+  const tabsEl = throwOnNullable(
+    document.querySelector("#tabs"),
+    "#tabs が見つかりません。",
+  );
+  const viewEl = throwOnNullable(
+    document.querySelector("#ui"),
+    "#ui が見つかりません。",
+  );
+  const paramsEl = throwOnNullable(
+    document.querySelector("#params"),
+    "#params が見つかりません。",
+  );
+  const paramsToggle = throwOnNullable(
+    document.querySelector<HTMLButtonElement>("#params-toggle"),
+    "#params-toggle が見つかりません。",
+  );
+  const cameraEl = throwOnNullable(
+    document.querySelector<HTMLElement>("#camera"),
+    "#camera が見つかりません。",
+  );
 
   // ジェネレータのタブ。
   const tabButtons = GENERATORS.map((g) => {

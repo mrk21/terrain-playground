@@ -1,4 +1,5 @@
 import "./style.css";
+import { throwOnNullable } from "./core/assert";
 import { createContext, resizeToDisplay } from "./visualization/gl/context";
 import type { Scene, SceneFactory } from "./visualization/scenes/scene";
 import { createSceneHeightmap } from "./visualization/scenes/scene-heightmap";
@@ -6,7 +7,10 @@ import { createSceneHeightmap3D } from "./visualization/scenes/scene-heightmap3d
 import { initCameraControls } from "./visualization/ui/camera-controls";
 import { initControls, type ViewKey } from "./visualization/ui/controls";
 
-const canvas = document.querySelector<HTMLCanvasElement>("#gl")!;
+const canvas = throwOnNullable(
+  document.querySelector<HTMLCanvasElement>("#gl"),
+  "#gl canvas が見つかりません。",
+);
 const gl = createContext(canvas);
 
 // ビュー（2D/3D）ごとのシーンファクトリ。どちらも高さ関数を受け取る。

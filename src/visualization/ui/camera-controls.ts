@@ -5,6 +5,8 @@
  * 実際のカメラ操作はコールバックで main 経由でシーンに委ねる。
  */
 
+import { throwOnNullable } from "../../core/assert";
+
 export interface CameraControlsOptions {
   /** 初期化ボタン：初期位置・アングルに戻す。 */
   onResetView(): void;
@@ -20,7 +22,10 @@ export interface CameraControlsHandle {
 export function initCameraControls(
   opts: CameraControlsOptions,
 ): CameraControlsHandle {
-  const root = document.querySelector("#camera")!;
+  const root = throwOnNullable(
+    document.querySelector("#camera"),
+    "#camera が見つかりません。",
+  );
 
   // 方位磁針（クリックで北上・真上）。赤い針が北を指す。
   const compass = document.createElement("button");
@@ -51,7 +56,10 @@ export function initCameraControls(
   root.appendChild(compass);
   root.appendChild(recenter);
 
-  const needle = compass.querySelector<SVGElement>(".compass-needle")!;
+  const needle = throwOnNullable(
+    compass.querySelector<SVGElement>(".compass-needle"),
+    ".compass-needle が見つかりません。",
+  );
   let last = Number.NaN;
 
   return {
