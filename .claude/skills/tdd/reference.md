@@ -73,6 +73,25 @@ describe("Rng", () => {
 
 要は「UI だからテストしない」と最初から諦めない一方で、「**テストのために設計を歪めない**」。削り出すのが自然なものを、自然な形で削り出す。
 
+## 複雑度ゲート
+
+「複雑度→設計見直し」の運用方針は CLAUDE.md「複雑度と設計見直し」にある。ここはその技術的背景。
+
+ゲートは Biome の `noExcessiveCognitiveComplexity` で機械化している。`biome.json` で `level: "warn"` / 閾値 `maxAllowedComplexity: 15`（SonarSource の認知的複雑度アルゴリズム）。`npm run check` / `npm run lint` で、超えた関数が `Excessive complexity of N detected (max: 15)` として出る。
+
+測っているのは**読みにくさ**（分岐・ネストの深さ）であって行数ではない。冗長でも直線的なコードは上がらず、深くネストした制御フローで上がる。循環的複雑度（テストの本数の目安）ではなく認知的複雑度なので、「人/AI が追える設計か」を見る用途に向く。素直に書いた純粋ロジックはガード節や「配列＋ループ」になって15に届きにくく、警告が実際に出るのは既存コード（特に `visualization/` 側）への機能追加で制御フローが深くなったとき。
+
+本質的な複雑さで抑制すると判断したときの書式（理由を必ず書く。これ自体が記録になる）:
+
+```ts
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: 生成カーネルの分岐は本質的。これ以上分割すると却って追いにくくなる
+export function generateHeightField(/* ... */) {
+  // ...
+}
+```
+
+閾値はリポジトリ全体に効く（`visualization/` のグルーも含む）が、認知的複雑度は直線的な WebGL セットアップではほぼ上がらないので実害は出にくい。うるさく感じたら `biome.json` で `maxAllowedComplexity` を上げるか、`overrides` で `src/core`・`src/algorithm` に絞る。
+
 ## カバレッジ
 
 既定ではカバレッジ閾値を強制しない（個人プロジェクトで摩擦になるため）。必要なときだけ任意で測る:
