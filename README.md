@@ -4,9 +4,11 @@
 
 ## 技術スタック
 
-- Vite
-- TypeScript
+- TypeScript: `6.x`
+- Vite: `8.x`
+- Vitest: `4.x`
 - WebGL2
+  - 地形メッシュ・タイルの描画基盤
 
 ## セットアップ
 
@@ -43,6 +45,12 @@ npm run build
 
 # ビルド成果物をローカルで確認
 npm run preview
+
+# テスト（watch モード）
+npm test
+
+# テストを 1 回だけ実行
+npm run test:run
 ```
 
 ### ディレクトリ構成
@@ -61,7 +69,9 @@ src/
 │   ├── ui/         #   タブ・パラメータパネル・カメラ操作
 │   ├── input/      #   ジェスチャ入力
 │   └── shaders/    #   GLSL シェーダ
-├── core/           # 両層が依存する基盤（基本的な数学 util、共有ドメイン定数を含む colormap）
+├── core/           # 両層が依存する基盤
+│   ├── math/       #   行列・ベクトル・乱数などの数学 util
+│   └── colormap.ts #   共有ドメイン定数を含む colormap
 └── main.ts         # 上記を配線するエントリーポイント
 ```
 
