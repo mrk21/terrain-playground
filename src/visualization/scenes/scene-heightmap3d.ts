@@ -22,6 +22,10 @@ import type { Scene } from "./scene";
  *   - 近い／大きく見えるノードは 4 分割して細かく、遠いノードは粗いまま。
  *   - 視錐台に入らないノードは辿らない（フラスタムカリング）。
  *   - 子が揃うまでは親（粗い）を描くので、穴も重なり（z-fighting）も出ない。
+ *   - 不足ノードはカメラに近い順（手前優先）に、粗→細へ 1 階層ずつ生成するので、
+ *     手前から連続的に解像していく。
+ *   - 視界外に出たノードもしばらくキャッシュに残す（LRU）。回転・パン・ズームで
+ *     戻っても即再利用でき、作り直しによるちらつき・カクつきが出ない。
  *   - LOD 差の継ぎ目はスカート（縁を下に垂らす壁）で隠す。
  * これにより、ズームしても描画コストがほぼ一定になる。
  */
@@ -49,8 +53,17 @@ const FOV = Math.PI / 4;
 const FAR = 5000;
 const MIN_DISTANCE = 5;
 const MAX_DISTANCE = 1500;
-/** 1 フレームに新規生成するノード数（refinement のフロンティア用。生成は軽いので多め）。 */
+/** 1 フレームに新規生成するノード数（ビルドキューの上位＝手前優先で消化する）。 */
 const BUILD_BUDGET = 16;
+/**
+ * ノードキャッシュの保持上限（個数）。視界外・別 LOD に外れたノードを即捨てず、
+ * この数までは残して LRU で間引く。回転・パン・ズームで戻ったとき、作り直さず
+ * 即再利用するため（Google Maps 風に「一度読んだタイルは残す」挙動）。
+ * 高解像度ビューポートでの可視ノード数（~300）の上に保持分の余裕を確保する。
+ * 注: 描画に必要なノードは lastUsed で必ず保護されるので、この値は「保持量 vs メモリ」
+ * のチューニングであって、小さくても描画は壊れない（保持の効きが弱まるだけ）。
+ */
+const CACHE_CAPACITY = 512;
 /** ルートを探索する範囲（カメラのルートセルから ±ROOT_RADIUS）。 */
 const ROOT_RADIUS = 2;
 
@@ -179,6 +192,16 @@ export function createSceneHeightmap3D(
   let pendingRefine = 0;
   let settled = false;
 
+  // 手前優先のビルドキュー。各フレーム、描画に必要だが未生成の「目標 LOD の葉」を
+  // ここに積み、カメラに近い順（dist 昇順）に BUILD_BUDGET 個だけ生成する。
+  interface BuildReq {
+    depth: number;
+    nx: number;
+    nz: number;
+    dist: number;
+  }
+  const buildQueue: BuildReq[] = [];
+
   const buildNode = (depth: number, nx: number, nz: number): TerrainNode => {
     const size = ROOT_SIZE / 2 ** depth;
     const mesh = buildNodeMesh(nx * size, nz * size, size);
@@ -259,11 +282,12 @@ export function createSceneHeightmap3D(
     );
   };
 
-  // このノードが「描画可能（自分が生成済み or 子で完全に覆える）」か。副作用なし。
-  const coverable = (depth: number, nx: number, nz: number): boolean => {
-    if (!inFrustum(depth, nx, nz)) return true; // 視錐台外＝覆う必要なし
-    if (cache.has(nodeKey(depth, nx, nz))) return true;
-    if (!shouldSubdivide(depth, nx, nz)) return false; // 末端なのに未生成
+  // 4 つの子がすべて coverable か（＝穴も重なりもなく子に降りられるか）。
+  const allChildrenCoverable = (
+    depth: number,
+    nx: number,
+    nz: number,
+  ): boolean => {
     const cd = depth + 1,
       cx = nx * 2,
       cz = nz * 2;
@@ -275,17 +299,51 @@ export function createSceneHeightmap3D(
     );
   };
 
-  // 生成（フロンティア用・予算つき）。生成済みなら使用印だけ更新。
-  const requestBuild = (depth: number, nx: number, nz: number): void => {
-    const k = nodeKey(depth, nx, nz);
-    const existing = cache.get(k);
-    if (existing) {
-      existing.lastUsed = frame;
-      return;
+  // このノードが「描画可能（自分が生成済み or 子で完全に覆える）」か。副作用なし。
+  const coverable = (depth: number, nx: number, nz: number): boolean => {
+    if (!inFrustum(depth, nx, nz)) return true; // 視錐台外＝覆う必要なし
+    if (cache.has(nodeKey(depth, nx, nz))) return true;
+    if (!shouldSubdivide(depth, nx, nz)) return false; // 末端なのに未生成
+    return allChildrenCoverable(depth, nx, nz);
+  };
+
+  // 粗いノードを描いたとき、その直下の子（リファインのフロンティア）をビルド要求する。
+  // 中間を飛ばさず 1 階層ずつ降ろすので、子が 1 つ生成されただけで coverable になり、
+  // 粗→細へ連続的に解像する（全か無かにならない）。
+  //   - 生成済みの子は使用印（lastUsed）だけ更新して保持する。揃うまでに他の兄弟を
+  //     待つ間、LRU に「未使用」と誤判定されて捨てられないようにするため（重要）。
+  //   - 未生成の子は dist（カメラ最近点距離）付きで積み、フレーム末に近い順で消化する。
+  const enqueueChildren = (depth: number, nx: number, nz: number): void => {
+    const cd = depth + 1;
+    const size = ROOT_SIZE / 2 ** cd;
+    for (let c = 0; c < 4; c++) {
+      const cx = nx * 2 + (c & 1);
+      const cz = nz * 2 + (c >> 1);
+      if (!inFrustum(cd, cx, cz)) continue;
+      const existing = cache.get(nodeKey(cd, cx, cz));
+      if (existing) {
+        existing.lastUsed = frame;
+        continue;
+      }
+      buildQueue.push({
+        depth: cd,
+        nx: cx,
+        nz: cz,
+        dist: nearestDist(cx * size, cz * size, size),
+      });
     }
-    if (builtThisFrame >= BUILD_BUDGET) return;
-    cache.set(k, buildNode(depth, nx, nz));
-    builtThisFrame++;
+  };
+
+  // 生成済みなら取得、無ければ生成してキャッシュに入れ、使用印（lastUsed）を更新して返す。
+  const ensureNode = (depth: number, nx: number, nz: number): TerrainNode => {
+    const k = nodeKey(depth, nx, nz);
+    let node = cache.get(k);
+    if (!node) {
+      node = buildNode(depth, nx, nz);
+      cache.set(k, node);
+    }
+    node.lastUsed = frame;
+    return node;
   };
 
   // 描画する分（= 利用可能な最深ノードの覆い）を集める。重なり・穴なし。
@@ -296,51 +354,32 @@ export function createSceneHeightmap3D(
     out: TerrainNode[],
   ): void => {
     if (!inFrustum(depth, nx, nz)) return;
-    const k = nodeKey(depth, nx, nz);
 
-    if (shouldSubdivide(depth, nx, nz)) {
-      const cd = depth + 1,
-        cx = nx * 2,
-        cz = nz * 2;
-      if (
-        coverable(cd, cx, cz) &&
-        coverable(cd, cx + 1, cz) &&
-        coverable(cd, cx, cz + 1) &&
-        coverable(cd, cx + 1, cz + 1)
-      ) {
-        // 子が全部覆える → 降りる。自分はキャッシュ保持のため使用印だけ。
-        const self = cache.get(k);
-        if (self) self.lastUsed = frame;
-        selectRender(cd, cx, cz, out);
-        selectRender(cd, cx + 1, cz, out);
-        selectRender(cd, cx, cz + 1, out);
-        selectRender(cd, cx + 1, cz + 1, out);
-        return;
-      }
-      // 子が未準備 → 自分（粗い）を描画し、子の生成を要求して次フレームで refine。
-      pendingRefine++; // この代替が 1 つでもある間は未収束。
-      let self = cache.get(k);
-      if (!self) {
-        self = buildNode(depth, nx, nz); // フォールバックは必ず用意（描画対象なので予算外）
-        cache.set(k, self);
-      }
-      self.lastUsed = frame;
-      out.push(self);
-      requestBuild(cd, cx, cz);
-      requestBuild(cd, cx + 1, cz);
-      requestBuild(cd, cx, cz + 1);
-      requestBuild(cd, cx + 1, cz + 1);
+    // 末端（これ以上分割不要）→ 自分を描く。
+    if (!shouldSubdivide(depth, nx, nz)) {
+      out.push(ensureNode(depth, nx, nz));
       return;
     }
 
-    // 末端ノード。
-    let self = cache.get(k);
-    if (!self) {
-      self = buildNode(depth, nx, nz);
-      cache.set(k, self);
+    const cd = depth + 1,
+      cx = nx * 2,
+      cz = nz * 2;
+    if (allChildrenCoverable(depth, nx, nz)) {
+      // 子が全部覆える → 降りる。自分はキャッシュ保持のため使用印だけ。
+      const self = cache.get(nodeKey(depth, nx, nz));
+      if (self) self.lastUsed = frame;
+      selectRender(cd, cx, cz, out);
+      selectRender(cd, cx + 1, cz, out);
+      selectRender(cd, cx, cz + 1, out);
+      selectRender(cd, cx + 1, cz + 1, out);
+      return;
     }
-    self.lastUsed = frame;
-    out.push(self);
+
+    // 子が未準備 → 自分（粗い）を即描画し、直下の子を手前優先で生成要求する。
+    // 次フレーム以降、近い方から 1 階層ずつ細かく描き換わる。
+    pendingRefine++; // この代替が 1 つでもある間は未収束。
+    out.push(ensureNode(depth, nx, nz)); // フォールバックは必ず用意（描画対象なので予算外）
+    enqueueChildren(depth, nx, nz);
   };
 
   const canvas = gl.canvas as HTMLCanvasElement;
@@ -436,11 +475,42 @@ export function createSceneHeightmap3D(
   const mvp = mat4.create();
   const renderList: TerrainNode[] = [];
 
+  // ビルドキューを手前（dist 小）優先で BUILD_BUDGET 個まで生成する。
+  const drainBuildQueue = (): void => {
+    buildQueue.sort((a, b) => a.dist - b.dist);
+    for (const req of buildQueue) {
+      if (builtThisFrame >= BUILD_BUDGET) break;
+      const k = nodeKey(req.depth, req.nx, req.nz);
+      if (cache.has(k)) continue; // フォールバックで既に生成済み
+      cache.set(k, buildNode(req.depth, req.nx, req.nz));
+      builtThisFrame++;
+    }
+  };
+
+  // 容量超過分だけ、このフレーム未使用のノードを古い順（LRU）に解放する。
+  // 戻ってきたときの再利用のため、超過していなければ視界外でも残す。
+  const evictCache = (): void => {
+    let over = cache.size - CACHE_CAPACITY;
+    if (over <= 0) return;
+    const idle: Array<[string, TerrainNode]> = [];
+    for (const entry of cache) {
+      if (entry[1].lastUsed !== frame) idle.push(entry);
+    }
+    idle.sort((a, b) => a[1].lastUsed - b[1].lastUsed);
+    for (const [k, node] of idle) {
+      if (over <= 0) break;
+      disposeNode(node);
+      cache.delete(k);
+      over--;
+    }
+  };
+
   return {
     render() {
       frame++;
       builtThisFrame = 0;
       pendingRefine = 0;
+      buildQueue.length = 0;
       gl.enable(gl.DEPTH_TEST);
       gl.clearColor(0.45, 0.62, 0.82, 1);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -475,13 +545,9 @@ export function createSceneHeightmap3D(
         }
       }
 
-      // このフレームに使われなかったノードを解放。
-      for (const [k, node] of cache) {
-        if (node.lastUsed !== frame) {
-          disposeNode(node);
-          cache.delete(k);
-        }
-      }
+      // 不足ノードを手前優先で生成し、超過分だけ LRU で解放する。
+      drainBuildQueue();
+      evictCache();
 
       gl.useProgram(program);
       gl.uniformMatrix4fv(uMvp, false, mvp);
