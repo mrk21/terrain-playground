@@ -8,6 +8,8 @@
 
 ## 技術スタック
 
+- Node.js: `26.x`
+  - Current 系（LTS ではない）。`.node-version` / `.tool-versions` で固定
 - TypeScript: `6.x`
 - Vite: `8.x`
 - Vitest: `4.x`
