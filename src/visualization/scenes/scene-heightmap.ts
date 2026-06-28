@@ -5,6 +5,7 @@ import { attachGestures } from "../input/gestures";
 import fragSrc from "../shaders/tile.frag?raw";
 import vertSrc from "../shaders/tile.vert?raw";
 import type { Scene } from "./scene";
+import { selectTileLevel, tileVisible, zoomAtFocus } from "./tile-lod";
 
 /**
  * Google Maps 風のタイルピラミッド（クアッドツリー）LOD で地形を真上から表示する 2D シーン。
@@ -33,10 +34,6 @@ const BUDGET_PER_FRAME = 3;
 const DEFAULT_VIEW_HEIGHT = 200;
 const MIN_VIEW_HEIGHT = 1;
 const MAX_VIEW_HEIGHT = 2000;
-
-function clamp(v: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, v));
-}
 
 interface Tile {
   level: number;
@@ -134,15 +131,19 @@ export function createSceneHeightmap(
   // 焦点 (fx,fy)（canvas 相対 CSS px）の地点が動かないようズームする。
   // factor>1 で拡大（viewHeight を縮める）。Google Maps の「指の下が動かない」挙動。
   const zoomAt = (factor: number, fx: number, fy: number): void => {
-    const w = canvas.clientWidth;
-    const h = canvas.clientHeight;
-    const wppBefore = viewHeight / h; // 水平も同スケール（halfX = halfY*aspect のため）。
-    const wx = centerX + (fx - w / 2) * wppBefore;
-    const wz = centerZ + (fy - h / 2) * wppBefore;
-    viewHeight = clamp(viewHeight / factor, MIN_VIEW_HEIGHT, MAX_VIEW_HEIGHT);
-    const wppAfter = viewHeight / h;
-    centerX = wx - (fx - w / 2) * wppAfter;
-    centerZ = wz - (fy - h / 2) * wppAfter;
+    const next = zoomAtFocus(
+      { centerX, centerZ, viewHeight },
+      factor,
+      fx,
+      fy,
+      canvas.clientWidth,
+      canvas.clientHeight,
+      MIN_VIEW_HEIGHT,
+      MAX_VIEW_HEIGHT,
+    );
+    centerX = next.centerX;
+    centerZ = next.centerZ;
+    viewHeight = next.viewHeight;
   };
 
   const detachGestures = attachGestures(canvas, {
@@ -179,11 +180,11 @@ export function createSceneHeightmap(
       const halfX = halfY * aspect;
 
       // 1テクセル≒1ピクセルになるレベルを選ぶ。
-      // texelWorld(L) = BASE_TILE_WORLD / 2^L / TILE_RES ≈ worldPerPixel
-      const worldPerPixel = viewHeight / gl.drawingBufferHeight;
-      const level = clamp(
-        Math.round(Math.log2(BASE_TILE_WORLD / (TILE_RES * worldPerPixel))),
-        0,
+      const level = selectTileLevel(
+        viewHeight,
+        gl.drawingBufferHeight,
+        BASE_TILE_WORLD,
+        TILE_RES,
         MAX_LEVEL,
       );
       const tileWorld = BASE_TILE_WORLD / 2 ** level;
@@ -230,14 +231,8 @@ export function createSceneHeightmap(
       const visible: Tile[] = [];
       for (const tile of cache.values()) {
         if (tile.level > level || tile.level < level - KEEP_COARSER) continue;
-        if (
-          tile.ox >= ax1 ||
-          tile.ox + tile.tileWorld <= ax0 ||
-          tile.oz >= az1 ||
-          tile.oz + tile.tileWorld <= az0
-        ) {
+        if (!tileVisible(tile.ox, tile.oz, tile.tileWorld, ax0, ax1, az0, az1))
           continue; // 可視範囲外
-        }
         tile.lastUsed = frame;
         visible.push(tile);
       }

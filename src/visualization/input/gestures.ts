@@ -14,6 +14,9 @@
  * 分けることで、Google Maps と同じく操作が混ざらない。焦点（focal）は canvas 左上を
  * 原点とする CSS ピクセル座標で、ズーム時に指の下の地点が動かないよう合わせるのに使う。
  */
+import { wrapAngleDelta } from "../../core/math/scalar";
+import { twoFingerGesture } from "./gesture-math";
+
 export interface GestureTarget {
   /** 1 本指 / マウスのドラッグ。dx,dy は CSS px。shift はデスクトップ回転用。 */
   onDrag?(dx: number, dy: number, shift: boolean): void;
@@ -85,23 +88,11 @@ export function attachGestures(
   };
 
   // 2 本指の重心・間隔・角度を取り出す。
-  const twoFinger = (): {
-    cx: number;
-    cy: number;
-    dist: number;
-    angle: number;
-  } => {
+  const twoFinger = (): ReturnType<typeof twoFingerGesture> => {
     const it = pointers.values();
     const a = it.next().value as Pt;
     const b = it.next().value as Pt;
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    return {
-      cx: (a.x + b.x) / 2,
-      cy: (a.y + b.y) / 2,
-      dist: Math.hypot(dx, dy) || 1,
-      angle: Math.atan2(dy, dx),
-    };
+    return twoFingerGesture(a, b);
   };
 
   const beginDrag = (): void => {
@@ -180,9 +171,7 @@ export function attachGestures(
         Math.hypot(g.cx - pinchCx, g.cy - pinchCy) +
         Math.abs(g.dist - prevDist);
       if (g.dist !== prevDist) target.onPinch?.(g.dist / prevDist, g.cx, g.cy);
-      let da = g.angle - prevAngle;
-      if (da > Math.PI) da -= 2 * Math.PI;
-      else if (da < -Math.PI) da += 2 * Math.PI;
+      const da = wrapAngleDelta(g.angle - prevAngle);
       if (da !== 0) target.onTwist?.(da, g.cx, g.cy);
       const dcy = g.cy - prevCy;
       if (dcy !== 0) target.onTilt?.(dcy);

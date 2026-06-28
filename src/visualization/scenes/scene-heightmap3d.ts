@@ -1,10 +1,17 @@
 import type { HeightMapFunc } from "../../algorithm/height";
 import { MAX_HEIGHT } from "../../core/colormap";
 import * as mat4 from "../../core/math/mat4";
+import { clamp } from "../../core/math/scalar";
 import { createProgram } from "../gl/shader";
 import { attachGestures } from "../input/gestures";
 import fragSrc from "../shaders/terrain.frag?raw";
 import vertSrc from "../shaders/terrain.vert?raw";
+import {
+  aabbInFrustum,
+  extractFrustumPlanes,
+  pointToAabbDistance,
+} from "./culling";
+import { buildGridIndices, perimeterIndices } from "./grid-mesh";
 import type { Scene } from "./scene";
 
 /**
@@ -51,117 +58,15 @@ const ROOT_RADIUS = 2;
 const BOX_MIN_Y = -SKIRT_DEPTH;
 const BOX_MAX_Y = MAX_HEIGHT * HEIGHT_SCALE;
 
+/** 真の高さを地形の有効レンジ [0, MAX_HEIGHT] に収める。 */
 function clampHeight(y: number): number {
-  return y < 0 ? 0 : y > MAX_HEIGHT ? MAX_HEIGHT : y;
-}
-
-function clamp(v: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, v));
-}
-
-/** 格子の外周頂点インデックス（j*N+i）をループ順に並べた配列。スカート生成に使う。 */
-function perimeterIndices(): number[] {
-  const p: number[] = [];
-  for (let i = 0; i < N; i++) p.push(i); // 上辺 j=0
-  for (let j = 1; j < N; j++) p.push(j * N + (N - 1)); // 右辺 i=N-1
-  for (let i = N - 2; i >= 0; i--) p.push((N - 1) * N + i); // 下辺 j=N-1
-  for (let j = N - 2; j >= 1; j--) p.push(j * N + 0); // 左辺 i=0
-  return p;
-}
-
-/** 全ノード共通の index（地表 + スカート）。LEAF_GRID は固定なので 1 本を共有。 */
-function buildIndices(): Uint16Array {
-  const out: number[] = [];
-  for (let j = 0; j < LEAF_GRID; j++) {
-    for (let i = 0; i < LEAF_GRID; i++) {
-      const a = j * N + i;
-      const b = a + 1;
-      const c = a + N;
-      const d = c + 1;
-      out.push(a, c, b, b, c, d);
-    }
-  }
-  // スカート（外周の各辺を、真下に落としたコピー頂点とつなぐ壁）。カリング無効なので向きは不問。
-  const peri = perimeterIndices();
-  const P = peri.length;
-  const base = N * N;
-  for (let k = 0; k < P; k++) {
-    const nk = (k + 1) % P;
-    out.push(peri[k], base + k, peri[nk], peri[nk], base + k, base + nk);
-  }
-  return new Uint16Array(out);
+  return clamp(y, 0, MAX_HEIGHT);
 }
 
 interface NodeMesh {
   positions: Float32Array;
   normals: Float32Array;
   heights: Float32Array; // 真の高さ(0..128)。色はフラグメントで決める。
-}
-
-/** 列優先 mvp から視錐台の6平面 [a,b,c,d]×6 を out(Float32Array 24) に取り出す。 */
-function extractPlanes(m: Float32Array, out: Float32Array): void {
-  const r00 = m[0],
-    r01 = m[4],
-    r02 = m[8],
-    r03 = m[12];
-  const r10 = m[1],
-    r11 = m[5],
-    r12 = m[9],
-    r13 = m[13];
-  const r20 = m[2],
-    r21 = m[6],
-    r22 = m[10],
-    r23 = m[14];
-  const r30 = m[3],
-    r31 = m[7],
-    r32 = m[11],
-    r33 = m[15];
-  // left, right, bottom, top, near, far
-  out[0] = r30 + r00;
-  out[1] = r31 + r01;
-  out[2] = r32 + r02;
-  out[3] = r33 + r03;
-  out[4] = r30 - r00;
-  out[5] = r31 - r01;
-  out[6] = r32 - r02;
-  out[7] = r33 - r03;
-  out[8] = r30 + r10;
-  out[9] = r31 + r11;
-  out[10] = r32 + r12;
-  out[11] = r33 + r13;
-  out[12] = r30 - r10;
-  out[13] = r31 - r11;
-  out[14] = r32 - r12;
-  out[15] = r33 - r13;
-  out[16] = r30 + r20;
-  out[17] = r31 + r21;
-  out[18] = r32 + r22;
-  out[19] = r33 + r23;
-  out[20] = r30 - r20;
-  out[21] = r31 - r21;
-  out[22] = r32 - r22;
-  out[23] = r33 - r23;
-}
-
-/** AABB が視錐台に（一部でも）入るか。保守的（偽陽性あり）だが描画には十分。 */
-function aabbVisible(
-  planes: Float32Array,
-  minx: number,
-  maxx: number,
-  minz: number,
-  maxz: number,
-): boolean {
-  for (let i = 0; i < 6; i++) {
-    const a = planes[i * 4],
-      b = planes[i * 4 + 1],
-      c = planes[i * 4 + 2],
-      d = planes[i * 4 + 3];
-    const px = a >= 0 ? maxx : minx;
-    const py = b >= 0 ? BOX_MAX_Y : BOX_MIN_Y;
-    const pz = c >= 0 ? maxz : minz;
-    if (a * px + b * py + c * pz + d < 0) return false;
-  }
-  return true;
 }
 
 interface TerrainNode {
@@ -198,7 +103,7 @@ export function createSceneHeightmap3D(
     }
     const at = (i: number, j: number): number => hb[(j + 1) * B + (i + 1)];
 
-    const peri = perimeterIndices();
+    const peri = perimeterIndices(N);
     const vcount = N * N + peri.length;
     const positions = new Float32Array(vcount * 3);
     const normals = new Float32Array(vcount * 3);
@@ -247,7 +152,7 @@ export function createSceneHeightmap3D(
   const uMvp = gl.getUniformLocation(program, "uMvp");
 
   // 全ノード共通の index バッファ。
-  const indices = buildIndices();
+  const indices = buildGridIndices(LEAF_GRID);
   const indexCount = indices.length;
   const indexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
@@ -313,12 +218,22 @@ export function createSceneHeightmap3D(
   const planes = new Float32Array(24);
 
   // ノード中心ではなく、AABB の最近点までの距離（近い縁で十分分割させる）。
-  const nearestDist = (ox: number, oz: number, size: number): number => {
-    const qx = clamp(eyeX, ox, ox + size);
-    const qy = clamp(eyeY, BOX_MIN_Y, BOX_MAX_Y);
-    const qz = clamp(eyeZ, oz, oz + size);
-    return Math.max(1, Math.hypot(eyeX - qx, eyeY - qy, eyeZ - qz));
-  };
+  // 1 未満は 1 に丸める（カメラが箱に入っても 0 除算・過分割しない）。
+  const nearestDist = (ox: number, oz: number, size: number): number =>
+    Math.max(
+      1,
+      pointToAabbDistance(
+        eyeX,
+        eyeY,
+        eyeZ,
+        ox,
+        ox + size,
+        BOX_MIN_Y,
+        BOX_MAX_Y,
+        oz,
+        oz + size,
+      ),
+    );
 
   // 画面上で三角形が PIXEL_BUDGET を超えるなら分割すべき。
   const shouldSubdivide = (depth: number, nx: number, nz: number): boolean => {
@@ -333,7 +248,15 @@ export function createSceneHeightmap3D(
     const size = ROOT_SIZE / 2 ** depth;
     const ox = nx * size;
     const oz = nz * size;
-    return aabbVisible(planes, ox, ox + size, oz, oz + size);
+    return aabbInFrustum(
+      planes,
+      ox,
+      ox + size,
+      BOX_MIN_Y,
+      BOX_MAX_Y,
+      oz,
+      oz + size,
+    );
   };
 
   // このノードが「描画可能（自分が生成済み or 子で完全に覆える）」か。副作用なし。
@@ -540,7 +463,7 @@ export function createSceneHeightmap3D(
         view,
       );
       mat4.multiply(proj, view, mvp);
-      extractPlanes(mvp, planes);
+      extractFrustumPlanes(mvp, planes);
 
       // 視錐台に入りうるルート群から四分木を辿って描画ノードを収集。
       renderList.length = 0;
