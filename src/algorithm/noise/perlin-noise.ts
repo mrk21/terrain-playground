@@ -1,3 +1,4 @@
+import { clamp } from "../../core/math/scalar";
 import { diff2d, dot2d, type Vector2D } from "../../core/math/vector2d";
 import {
   type HashFunction,
@@ -9,10 +10,6 @@ import {
   easeSmootherstep,
   interpolate,
 } from "./interpolation";
-
-function crop(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
 
 export class PerlinNoise {
   private hashFunction: HashFunction;
@@ -108,7 +105,7 @@ export class PerlinNoise {
   /**
    * Perlin ノイズの値域は [-1, 1] ではなく約 [-√(n/4), √(n/4)]（n は次元数）。
    * 2次元なら √(2/4) = √0.5 ≈ 0.707。これを [0, 1] に正規化する。
-   * この境界は緩めの上界なので、実データは 0.5 付近に寄り、crop は保険として効く。
+   * この境界は緩めの上界なので、実データは 0.5 付近に寄り、clamp は保険として効く。
    * @param value [number] 対象の値
    * @returns [number] 正規化後の値
    * @see: https://digitalfreepen.com/2017/06/20/range-perlin-noise.html
@@ -116,6 +113,6 @@ export class PerlinNoise {
   private normalize(value: number): number {
     const n = 2;
     const bound = Math.sqrt(n / 4);
-    return crop((value + bound) / (2 * bound), 0, 1);
+    return clamp((value + bound) / (2 * bound), 0, 1);
   }
 }
