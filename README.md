@@ -7,6 +7,8 @@
 - TypeScript: `6.x`
 - Vite: `8.x`
 - Vitest: `4.x`
+- Biome: `2.x`
+  - linter / formatter（設定は `biome.json`）
 - WebGL2
   - 地形メッシュ・タイルの描画基盤
 
@@ -51,6 +53,15 @@ npm test
 
 # テストを 1 回だけ実行
 npm run test:run
+
+# フォーマット（Biome で整形して上書き）
+npm run format
+
+# Lint（Biome で静的解析）
+npm run lint
+
+# フォーマット + Lint + import 整理をまとめて適用
+npm run check
 ```
 
 ### ディレクトリ構成

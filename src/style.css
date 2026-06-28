@@ -24,6 +24,7 @@ body {
   display: block;
   width: 100vw;
   height: 100vh;
+  /* biome-ignore lint/suspicious/noDuplicateProperties: dvh 非対応ブラウザ向けに 100vh を意図的にフォールバックとして残す。 */
   height: 100dvh; /* モバイルのツールバー伸縮に追従（dvh 非対応なら上の 100vh）。 */
   /* ブラウザのスクロール・ピンチズームを無効化し、ジェスチャを自前で扱う。 */
   touch-action: none;

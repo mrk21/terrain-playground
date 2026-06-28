@@ -1,11 +1,11 @@
-import type { HeightMapFunc } from "../../algorithm/height";
 import {
-  GENERATORS,
   defaultValues,
+  GENERATORS,
   generatorById,
   type HeightMapGenerator,
   type ParamDef,
 } from "../../algorithm/generators";
+import type { HeightMapFunc } from "../../algorithm/height";
 import { makeSeed } from "../../algorithm/noise/hash-function";
 
 /**
@@ -64,15 +64,17 @@ export function initControls(opts: ControlsOptions): ControlsHandle {
     const q = new URLSearchParams();
     q.set("gen", gen.id);
     q.set("view", view);
-    for (const p of gen.params) q.set(p.key, String(valuesByGen[gen.id][p.key]));
-    history.replaceState(null, "", "?" + q.toString());
+    for (const p of gen.params)
+      q.set(p.key, String(valuesByGen[gen.id][p.key]));
+    history.replaceState(null, "", `?${q.toString()}`);
   };
 
   // --- DOM コンテナ ---
   const tabsEl = document.querySelector("#tabs")!;
   const viewEl = document.querySelector("#ui")!;
   const paramsEl = document.querySelector("#params")!;
-  const paramsToggle = document.querySelector<HTMLButtonElement>("#params-toggle")!;
+  const paramsToggle =
+    document.querySelector<HTMLButtonElement>("#params-toggle")!;
   const cameraEl = document.querySelector<HTMLElement>("#camera")!;
 
   // ジェネレータのタブ。

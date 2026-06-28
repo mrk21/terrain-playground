@@ -1,11 +1,11 @@
-import { createProgram } from "../gl/shader";
-import * as mat4 from "../../core/math/mat4";
 import type { HeightMapFunc } from "../../algorithm/height";
 import { MAX_HEIGHT } from "../../core/colormap";
+import * as mat4 from "../../core/math/mat4";
+import { createProgram } from "../gl/shader";
 import { attachGestures } from "../input/gestures";
-import type { Scene } from "./scene";
-import vertSrc from "../shaders/terrain.vert?raw";
 import fragSrc from "../shaders/terrain.frag?raw";
+import vertSrc from "../shaders/terrain.vert?raw";
+import type { Scene } from "./scene";
 
 /**
  * 地形をクアッドツリー LOD で描く 3D シーン。

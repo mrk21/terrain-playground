@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { Rng, hashSeed } from "./rng";
+import { describe, expect, it } from "vitest";
+import { hashSeed, Rng } from "./rng";
 
 describe("Rng", () => {
   it("同じシードからは同じ乱数列が得られる（再現性）", () => {

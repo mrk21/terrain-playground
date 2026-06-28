@@ -1,8 +1,8 @@
 import {
+  type HeightMapFunc,
   makeFbmHeightMapFunc,
   makeIslandHeightMapFunc,
   makePerlinHeightMapFunc,
-  type HeightMapFunc,
 } from "./height";
 import { makeSeed } from "./noise/hash-function";
 
@@ -86,9 +86,33 @@ export const GENERATORS: HeightMapGenerator[] = [
     params: [
       SEED,
       ZOOM,
-      { key: "octaves", label: "octaves", min: 1, max: 12, step: 1, default: 8, kind: "int" },
-      { key: "lacunarity", label: "lacunarity", min: 1, max: 4, step: 0.1, default: 2, kind: "range" },
-      { key: "gain", label: "gain", min: 0.1, max: 0.9, step: 0.05, default: 0.5, kind: "range" },
+      {
+        key: "octaves",
+        label: "octaves",
+        min: 1,
+        max: 12,
+        step: 1,
+        default: 8,
+        kind: "int",
+      },
+      {
+        key: "lacunarity",
+        label: "lacunarity",
+        min: 1,
+        max: 4,
+        step: 0.1,
+        default: 2,
+        kind: "range",
+      },
+      {
+        key: "gain",
+        label: "gain",
+        min: 0.1,
+        max: 0.9,
+        step: 0.05,
+        default: 0.5,
+        kind: "range",
+      },
     ],
     make: ({ seed, zoom, octaves, lacunarity, gain }) =>
       makeFbmHeightMapFunc({ seed, zoom, octaves, lacunarity, gain }),

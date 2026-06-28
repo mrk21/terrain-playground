@@ -1,10 +1,10 @@
-import { createProgram } from "../gl/shader";
 import type { HeightMapFunc } from "../../algorithm/height";
 import { heightToColor, MAX_HEIGHT } from "../../core/colormap";
+import { createProgram } from "../gl/shader";
 import { attachGestures } from "../input/gestures";
-import type { Scene } from "./scene";
-import vertSrc from "../shaders/tile.vert?raw";
 import fragSrc from "../shaders/tile.frag?raw";
+import vertSrc from "../shaders/tile.vert?raw";
+import type { Scene } from "./scene";
 
 /**
  * Google Maps 風のタイルピラミッド（クアッドツリー）LOD で地形を真上から表示する 2D シーン。

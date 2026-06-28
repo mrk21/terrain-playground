@@ -1,10 +1,14 @@
-import { diff2d, dot2d, Vector2D } from "../../core/math/vector2d";
+import { diff2d, dot2d, type Vector2D } from "../../core/math/vector2d";
 import {
-  HashFunction,
+  type HashFunction,
   makeHashingHashFunction,
   makeSeed,
 } from "./hash-function";
-import { easeSmootherstep, EasingFunction, interpolate } from "./interpolation";
+import {
+  type EasingFunction,
+  easeSmootherstep,
+  interpolate,
+} from "./interpolation";
 
 function crop(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
