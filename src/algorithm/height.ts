@@ -36,7 +36,7 @@ export function makeIslandHeightMapFunc(): HeightMapFunc {
  */
 export function makePerlinHeightMapFunc({
   seed,
-  zoom = 20,
+  zoom = 50,
 }: {
   seed?: number;
   zoom?: number;
@@ -56,7 +56,7 @@ export function makeFbmHeightMapFunc({
   octaves = 8,
   lacunarity = 2,
   gain = 0.5,
-  zoom = 20,
+  zoom = 50,
 }: {
   seed?: number;
   octaves?: number;

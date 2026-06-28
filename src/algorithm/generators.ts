@@ -63,7 +63,7 @@ const ZOOM: ParamDef = {
   min: 1,
   max: 200,
   step: 1,
-  default: 20,
+  default: 50,
   kind: "range",
 };
 

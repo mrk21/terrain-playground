@@ -47,8 +47,8 @@ const TARGET_Y = (MAX_HEIGHT / 2) * HEIGHT_SCALE;
 /** カメラ（視点）パラメータ。 */
 const FOV = Math.PI / 4;
 const FAR = 5000;
-const MIN_DISTANCE = 20;
-const MAX_DISTANCE = 350;
+const MIN_DISTANCE = 5;
+const MAX_DISTANCE = 1500;
 /** 1 フレームに新規生成するノード数（refinement のフロンティア用。生成は軽いので多め）。 */
 const BUILD_BUDGET = 16;
 /** ルートを探索する範囲（カメラのルートセルから ±ROOT_RADIUS）。 */
