@@ -9,12 +9,15 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:e2e": "playwright test e2e/regression.spec.ts",
+    "shot": "playwright test e2e/readme-shot.spec.ts",
     "format": "biome format --write .",
     "lint": "biome lint .",
     "check": "biome check --write ."
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.1",
+    "@playwright/test": "^1.61.1",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
     "vitest": "^4.1.9"

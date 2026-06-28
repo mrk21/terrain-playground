@@ -44,7 +44,15 @@ const camera = initCameraControls({
 
 // --- 描画ループ ---
 let startTime: number | null = null;
+// E2E（Playwright）が描画完了を待ち、画を固定してスクショするためのフック。
+// settledFrames: LOD が連続収束しているフレーム数（scene.ts の isSettled() 参照）。
+// freeze(): 描画ループを止めて最後のフレームで固定する（preserveDrawingBuffer により
+// バッファが残る）。連続再描画による安定待ちの失敗や MSAA のフレーム間ノイズを避ける。
+// いずれも本番のロジックには影響しない（本番から freeze() は呼ばれない）。
+let settledFrames = 0;
+let running = true;
 function frame(now: number): void {
+  if (!running) return;
   if (startTime === null) startTime = now;
   const time = (now - startTime) / 1000;
 
@@ -52,6 +60,14 @@ function frame(now: number): void {
   gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
   current.render(time);
   camera.setHeading(current.getHeading());
+
+  settledFrames = current.isSettled() ? settledFrames + 1 : 0;
+  window.__terrain = {
+    settledFrames,
+    freeze() {
+      running = false;
+    },
+  };
 
   requestAnimationFrame(frame);
 }

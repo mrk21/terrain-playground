@@ -270,6 +270,9 @@ export function createSceneHeightmap3D(
   const cache = new Map<string, TerrainNode>();
   let frame = 0;
   let builtThisFrame = 0;
+  // このフレームで「子が未準備のため粗い親で代替描画した」回数。0 なら収束済み。
+  let pendingRefine = 0;
+  let settled = false;
 
   const buildNode = (depth: number, nx: number, nz: number): TerrainNode => {
     const size = ROOT_SIZE / 2 ** depth;
@@ -392,6 +395,7 @@ export function createSceneHeightmap3D(
         return;
       }
       // 子が未準備 → 自分（粗い）を描画し、子の生成を要求して次フレームで refine。
+      pendingRefine++; // この代替が 1 つでもある間は未収束。
       let self = cache.get(k);
       if (!self) {
         self = buildNode(depth, nx, nz); // フォールバックは必ず用意（描画対象なので予算外）
@@ -513,6 +517,7 @@ export function createSceneHeightmap3D(
     render() {
       frame++;
       builtThisFrame = 0;
+      pendingRefine = 0;
       gl.enable(gl.DEPTH_TEST);
       gl.clearColor(0.45, 0.62, 0.82, 1);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -565,6 +570,8 @@ export function createSceneHeightmap3D(
 
       if (hud)
         hud.textContent = `nodes: ${renderList.length} / cache: ${cache.size}`;
+
+      settled = pendingRefine === 0;
     },
     setHeight(next) {
       height = next;
@@ -587,6 +594,9 @@ export function createSceneHeightmap3D(
     },
     getHeading() {
       return yaw;
+    },
+    isSettled() {
+      return settled;
     },
     dispose() {
       detachGestures();

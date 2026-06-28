@@ -12,6 +12,12 @@ export interface Scene {
   resetNorth(): void;
   /** 現在の方位角（ラジアン。0 = 北が画面上）。方位磁針の針の向きに使う。 */
   getHeading(): number;
+  /**
+   * 直近の render() で LOD が目標解像度まで収束したか（粗いフォールバックや
+   * 未生成タイルが残っていない＝これ以上待っても絵が変わらない状態）。
+   * E2E がスクショ撮影の前に描画完了を待つために使う。
+   */
+  isSettled(): boolean;
   /** GL リソースを解放する。 */
   dispose(): void;
 }

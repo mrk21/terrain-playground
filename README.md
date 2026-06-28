@@ -2,11 +2,17 @@
 
 地形生成アルゴリズムの実験場。アルゴリズムを実装しながら、生成結果を即座に見て確かめることを目的にしている。2D/3Dビュー、無限スクロール、LODによる高速描画等を備え、PC/モバイルブラウザで動作する。
 
+![Terrain Playground のスクリーンショット（fBm ノイズの 3D 地形ビュー）](screenshot.png)
+
+> このスクリーンショットは `npm run shot` で生成している（[使い方](#開発コマンド)）。
+
 ## 技術スタック
 
 - TypeScript: `6.x`
 - Vite: `8.x`
 - Vitest: `4.x`
+- Playwright: `1.x`
+  - 実ブラウザ（Chromium）で WebGL2 を描画しての E2E / 視覚回帰テスト
 - Biome: `2.x`
   - linter / formatter（設定は `biome.json`）
 - WebGL2
@@ -54,6 +60,12 @@ npm test
 # テストを 1 回だけ実行
 npm run test:run
 
+# E2E / 視覚回帰テスト（Playwright で基準画像と比較）
+npm run test:e2e
+
+# README 用スクショ（screenshot.png）を生成
+npm run shot
+
 # フォーマット（Biome で整形して上書き）
 npm run format
 
@@ -94,3 +106,15 @@ src/
 2. `algorithm/generators.ts` の `GENERATORS` に 1 エントリ（id・ラベル・パラメータ定義・`make()`）を追加する。
 
 UI（タブ・スライダー）は `GENERATORS` の定義から自動で組み立てられるので、描画・UI 側のコードを書く必要はない。
+
+E2E / 視覚回帰テストは `src/` とは別に `e2e/` に置く。
+
+```
+e2e/
+├── regression.spec.ts  # 視覚回帰テスト（基準画像と比較）
+├── readme-shot.spec.ts # README 用スクショ（screenshot.png）生成
+├── helpers.ts          # 収束待ち・オーバーレイ非表示・描画固定のユーティリティ
+└── regression.spec.ts-snapshots/  # 基準画像（コミットする）
+```
+
+seed を固定して高さ関数を決定的にし、描画の収束（`window.__terrain.settledFrames`）を待ってから描画ループを固定して `#gl` canvas を撮る。WebGL canvas をスクショで読めるよう、`src/visualization/gl/context.ts` の WebGL2 コンテキストは `preserveDrawingBuffer: true` にしている。

@@ -5,6 +5,12 @@ dist-ssr
 .DS_Store
 .wrangler
 
+# playwright（基準画像 e2e/**-snapshots/ は除外せずコミットする）
+/test-results
+/playwright-report
+/blob-report
+/playwright/.cache
+
 # editor
 .vscode/*
 !.vscode/extensions.json

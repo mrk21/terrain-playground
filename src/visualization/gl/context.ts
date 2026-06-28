@@ -6,6 +6,10 @@ export function createContext(
     antialias: true,
     alpha: false,
     powerPreference: "high-performance",
+    // 描画後もバッファを保持し、フレーム外からピクセルを読み出せるようにする。
+    // これが無いと WebGL canvas のスクショが空になる（E2E の視覚回帰・README 用
+    // ショットがこれに依存。画像書き出し等にも使える）。
+    preserveDrawingBuffer: true,
   });
   if (!gl) {
     throw new Error("WebGL2 がこのブラウザでサポートされていません。");

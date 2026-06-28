@@ -94,6 +94,8 @@ export function createSceneHeightmap(
   // タイルキャッシュ。キーは `${level},${cx},${cz}`。
   const cache = new Map<string, Tile>();
   let frame = 0;
+  // 現レベルの可視タイルが欠けていない（＝くっきり描けている）か。
+  let settled = false;
 
   const createTile = (level: number, cx: number, cz: number): Tile => {
     const tileWorld = BASE_TILE_WORLD / 2 ** level;
@@ -213,6 +215,8 @@ export function createSceneHeightmap(
           }
         }
       }
+      // 現レベルの可視タイルがすべて揃っていれば収束（このフレームで作る分が無い）。
+      settled = missing.length === 0;
       if (missing.length > 0) {
         missing.sort((a, b) => a.d2 - b.d2);
         const n = Math.min(missing.length, BUDGET_PER_FRAME);
@@ -277,6 +281,9 @@ export function createSceneHeightmap(
     },
     getHeading() {
       return 0;
+    },
+    isSettled() {
+      return settled;
     },
     dispose() {
       detachGestures();
