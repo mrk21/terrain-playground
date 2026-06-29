@@ -2,7 +2,7 @@ import { clamp } from "../../core/math/scalar";
 import { diff2d, dot2d, type Vector2D } from "../../core/math/vector2d";
 import {
   type HashFunction,
-  makeHashingHashFunction,
+  makeMulberry32HashFunction,
   makeSeed,
 } from "./hash-function";
 import {
@@ -22,7 +22,7 @@ export class PerlinNoise {
   } = {}) {
     //this.hashFunction = makePermutationHashFunction(seed);
     //this.hashFunction = makeRngHashFunction(seed);
-    this.hashFunction = makeHashingHashFunction(seed);
+    this.hashFunction = makeMulberry32HashFunction(seed);
     //this.fadeFunction = easeLinear;
     //this.fadeFunction = easeSmoothstep;
     this.fadeFunction = easeSmootherstep;

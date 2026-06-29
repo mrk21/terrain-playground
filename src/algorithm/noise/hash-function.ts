@@ -49,15 +49,12 @@ export function makeRngHashFunction(seed: number = makeSeed()): HashFunction {
 }
 
 /**
- * permutation 表を使わず、整数ハッシュで `(x, y, seed) → [0, 1)` を求める実装。
- *
- * 「乗算 + XOR シフト」で座標と seed を撹拌する（Rng の mulberry32 と同系統）。
- * permutation 版と違い 256 周期でラップしないため、負を含む任意の座標を扱える。
+ * mulberry32 をベースにしたもの。
  *
  * @param seed [number] シード値。同一 seed なら同一の結果を返す。
  * @returns [HashFunction] 位置ベクトルから値を返す関数
  */
-export function makeHashingHashFunction(
+export function makeMulberry32HashFunction(
   seed: number = makeSeed(),
 ): HashFunction {
   return (pos: Vector2D): number => {
