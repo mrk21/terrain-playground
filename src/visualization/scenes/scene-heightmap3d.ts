@@ -29,6 +29,8 @@ export function createSceneHeightmap3D(
   heightFunc: HeightMapFunc,
 ): Scene {
   const tiles = createTerrainTiles(gl, heightFunc);
+  // HUD のマウス標高表示用に高さ関数を保持（setHeight で差し替える）。
+  let height = heightFunc;
 
   const program = createProgram(gl, vertSrc, fragSrc);
   const uMvp = gl.getUniformLocation(program, "uMvp");
@@ -143,7 +145,22 @@ export function createSceneHeightmap3D(
 
       settled = tiles.settled();
     },
+    worldAt(screenX, screenY) {
+      // 画面の点が注視点高さ TARGET_Y の水平面に刺さる (x,z) を出し、その標高を引く。
+      // 厳密な地表メッシュへのレイキャストではないので、真上ビューでは正確、
+      // 傾けると視差ぶんの誤差が出る（HUD の目安としては十分）。
+      const cam = { yaw, pitch, fov: FOV, target };
+      const viewport = { w: canvas.clientWidth, h: canvas.clientHeight };
+      const hit = groundUnder(cam, viewport, [screenX, screenY], distance);
+      if (!hit) return null;
+      return { x: hit[0], z: hit[1], height: height(hit[0], hit[1]) };
+    },
+    worldPerPixel() {
+      // 注視点の奥行きでの値（pan の worldPerPx と同じ）。真上ビューで正確、傾けると近似。
+      return (2 * distance * Math.tan(FOV / 2)) / canvas.clientHeight;
+    },
     setHeight(next) {
+      height = next;
       tiles.setHeight(next);
     },
     resetView() {

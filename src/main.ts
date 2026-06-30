@@ -1,4 +1,5 @@
 import "./style.css";
+import "./hud.css";
 import { throwOnNullable } from "./core/assert";
 import { createContext, resizeToDisplay } from "./visualization/gl/context";
 import type { Scene, SceneFactory } from "./visualization/scenes/scene";
@@ -6,6 +7,7 @@ import { createSceneHeightmap } from "./visualization/scenes/scene-heightmap";
 import { createSceneHeightmap3D } from "./visualization/scenes/scene-heightmap3d";
 import { initCameraControls } from "./visualization/ui/camera-controls";
 import { initControls, type ViewKey } from "./visualization/ui/controls";
+import { initScaleBar } from "./visualization/ui/scale-bar";
 
 const canvas = throwOnNullable(
   document.querySelector<HTMLCanvasElement>("#gl"),
@@ -46,6 +48,32 @@ const camera = initCameraControls({
   },
 });
 
+// --- マウス位置の座標・標高 HUD ---
+// canvas 相対 CSS px で最後のポインタ位置を持ち、毎フレーム worldAt で引き直す
+// （マウスが止まっていてもパン/ズーム/回転で下の地点が変わるため）。
+const coords = document.querySelector<HTMLElement>("#coords");
+let pointer: { x: number; y: number } | null = null;
+
+canvas.addEventListener("pointermove", (e) => {
+  const r = canvas.getBoundingClientRect();
+  pointer = { x: e.clientX - r.left, y: e.clientY - r.top };
+});
+canvas.addEventListener("pointerleave", () => {
+  pointer = null;
+});
+
+function updateCoords(): void {
+  if (!coords) return;
+  const p = pointer && current.worldAt(pointer.x, pointer.y);
+  // 地形外（canvas 外・3D の地平線上）は空にして枠を隠す（#coords:empty）。
+  coords.textContent = p
+    ? `X ${Math.round(p.x)}　Z ${Math.round(p.z)}　標高 ${p.height.toFixed(1)}`
+    : "";
+}
+
+// 縮尺バー。ズーム（worldPerPixel）に応じてバー幅とラベルを毎フレーム更新する。
+const scaleBar = initScaleBar();
+
 // --- 描画ループ ---
 let startTime: number | null = null;
 // E2E（Playwright）が描画完了を待ち、画を固定してスクショするためのフック。
@@ -64,6 +92,8 @@ function frame(now: number): void {
   gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
   current.render(time);
   camera.setHeading(current.getHeading());
+  updateCoords();
+  scaleBar.update(current.worldPerPixel());
 
   settledFrames = current.isSettled() ? settledFrames + 1 : 0;
   window.__terrain = {

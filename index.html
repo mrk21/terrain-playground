@@ -34,12 +34,19 @@
         </svg>
       </button>
     </div>
-    <!-- 画面下：性能 HUD（上）と操作説明（下）。 -->
+    <!-- 画面下：マウス位置の座標・標高（上）→ 性能 HUD → 操作説明を縦に積む。
+         縮尺バー(#scale)は #bottom 内で右下隅へ浮かせ（absolute）、操作説明と重なるときだけ
+         scale-bar.ts が 1 行ぶん上へ持ち上げる（他の HUD は押し上げない）。 -->
     <div id="bottom">
+      <div id="coords"></div>
       <div id="hud"></div>
       <div id="hint">
         移動: 1本指・ドラッグ / 拡大縮小: ピンチ・ダブルタップ後に上下・ホイール /
         回転・傾け: 2本指・Shift+ドラッグ(3D)
+      </div>
+      <div id="scale">
+        <span id="scale-label"></span>
+        <div id="scale-bar"></div>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

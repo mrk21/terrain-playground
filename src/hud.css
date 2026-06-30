@@ -1,0 +1,91 @@
+/* 画面下のオーバーレイ読み取り（HUD）群。
+   #bottom にマウス座標(#coords)・性能(#hud)・操作説明(#hint)を縦に積む。縮尺バー(#scale)は
+   右下隅へ浮かせ（absolute）、列の高さに影響させない。視覚回帰では #bottom ごと隠す。 */
+
+#bottom {
+  position: fixed;
+  left: calc(12px + env(safe-area-inset-left));
+  right: calc(12px + env(safe-area-inset-right));
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  /* 下の地形をドラッグできるよう、クリックは透過させる。 */
+  pointer-events: none;
+}
+
+/* マウス位置の座標・標高（#coords）と性能（#hud）。色・枠は揃える。 */
+#coords,
+#hud {
+  max-width: 100%;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #cfcfe0;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+/* 座標は桁が増減しても枠がガタつかないよう数字幅を固定。 */
+#coords {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 中身が無いとき（ポインタが地形外／HUD 非表示）は枠を出さない。 */
+#coords:empty,
+#hud:empty {
+  display: none;
+}
+
+#hint {
+  max-width: 100%;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #cfcfe0;
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+}
+
+#hint.hidden {
+  display: none;
+}
+
+/* 縮尺バー（Google Maps 風）。#bottom の右下隅へ浮かせる（フロー外なので他の HUD を押し上げない）。
+   操作説明と重なるときだけ scale-bar.ts が bottom を上げて 1 行ぶん持ち上げる。 */
+#scale {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  color: #cfcfe0;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  /* 明暗どちらの地形でもラベル・バーが読めるよう縁取り影を付ける。 */
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.9);
+}
+
+/* バーは下辺＋左右の縦線（⊔ 字、両端＝主目盛り）。幅は JS が worldPerPx から設定する。 */
+#scale-bar {
+  position: relative;
+  height: 7px;
+  border: 2px solid #cfcfe0;
+  border-top: none;
+  box-sizing: border-box;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.9));
+}
+
+/* 副目盛り：下辺から立てる短い縦線。分割点（left%）は JS が設定する。 */
+.scale-tick {
+  position: absolute;
+  bottom: 0;
+  width: 2px;
+  height: 4px;
+  background: #cfcfe0;
+  /* 2px 幅を分割点の中央にそろえる。 */
+  transform: translateX(-1px);
+}

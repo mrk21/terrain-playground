@@ -1,24 +1,57 @@
 import { describe, expect, it } from "vitest";
-import { selectTileLevel, tileVisible, zoomAtFocus } from "./tile-lod";
+import {
+  screenToWorld,
+  selectTileLevel,
+  tileVisible,
+  zoomAtFocus,
+} from "./tile-lod";
 
 const BASE = 256;
 const RES = 128;
 const MAX = 12;
 
-/** 焦点ピクセル (fx,fy) の下にあるワールド座標。 */
-function worldUnder(
-  s: { centerX: number; centerZ: number; viewHeight: number },
-  fx: number,
-  fy: number,
-  w: number,
-  h: number,
-) {
-  const wpp = s.viewHeight / h;
-  return {
-    x: s.centerX + (fx - w / 2) * wpp,
-    z: s.centerZ + (fy - h / 2) * wpp,
-  };
-}
+describe("screenToWorld", () => {
+  const w = 800;
+  const h = 600;
+
+  it("画面中心はビュー中心のワールド座標", () => {
+    const p = screenToWorld(
+      { centerX: 10, centerZ: -5, viewHeight: 200 },
+      400,
+      300,
+      w,
+      h,
+    );
+    expect(p.x).toBeCloseTo(10);
+    expect(p.z).toBeCloseTo(-5);
+  });
+
+  it("中心から右・下にずれると worldPerPx(=viewHeight/h) 分だけ +x/+z", () => {
+    // viewHeight 200, h 600 → worldPerPx = 1/3
+    const p = screenToWorld(
+      { centerX: 0, centerZ: 0, viewHeight: 200 },
+      400 + 30,
+      300 + 60,
+      w,
+      h,
+    );
+    expect(p.x).toBeCloseTo(10); // 30px * 1/3
+    expect(p.z).toBeCloseTo(20); // 60px * 1/3
+  });
+
+  it("水平も垂直と同じスケール（halfX = halfY*aspect のため worldPerPx は共通）", () => {
+    const p = screenToWorld(
+      { centerX: 0, centerZ: 0, viewHeight: 600 },
+      0,
+      0,
+      w,
+      h,
+    );
+    // worldPerPx = 600/600 = 1。左上端は中心から (-400,-300)px。
+    expect(p.x).toBeCloseTo(-400);
+    expect(p.z).toBeCloseTo(-300);
+  });
+});
 
 describe("selectTileLevel", () => {
   it("1テクセル≒1ピクセルになるレベルを選ぶ（指数がちょうど整数のとき）", () => {
@@ -51,8 +84,8 @@ describe("zoomAtFocus", () => {
     const fx = 600;
     const fy = 100;
     const after = zoomAtFocus(before, 2, fx, fy, w, h, 1, 2000);
-    const wb = worldUnder(before, fx, fy, w, h);
-    const wa = worldUnder(after, fx, fy, w, h);
+    const wb = screenToWorld(before, fx, fy, w, h);
+    const wa = screenToWorld(after, fx, fy, w, h);
     expect(wa.x).toBeCloseTo(wb.x);
     expect(wa.z).toBeCloseTo(wb.z);
   });

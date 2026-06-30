@@ -30,6 +30,25 @@ export function selectTileLevel(
 }
 
 /**
+ * 画面ピクセル (fx,fy)（canvas 相対 CSS px）の真下にあるワールド座標 [x,z]。
+ * 真上ビューなので worldPerPx = viewHeight/h を縦横共通に使う（halfX = halfY*aspect のため）。
+ * 焦点固定ズーム・HUD のマウス座標表示が共有する単一の出所。
+ */
+export function screenToWorld(
+  state: ViewState,
+  fx: number,
+  fy: number,
+  w: number,
+  h: number,
+): { x: number; z: number } {
+  const worldPerPx = state.viewHeight / h;
+  return {
+    x: state.centerX + (fx - w / 2) * worldPerPx,
+    z: state.centerZ + (fy - h / 2) * worldPerPx,
+  };
+}
+
+/**
  * 焦点 (fx,fy)（canvas 相対 CSS px）の地点が動かないようにズームした新しいビュー状態。
  * factor>1 で拡大（viewHeight を縮める）。Google Maps の「指の下が動かない」挙動。
  * viewHeight は [minViewHeight, maxViewHeight] にクランプする。
@@ -44,9 +63,8 @@ export function zoomAtFocus(
   minViewHeight: number,
   maxViewHeight: number,
 ): ViewState {
-  const wppBefore = state.viewHeight / h; // 水平も同スケール（halfX = halfY*aspect のため）。
-  const wx = state.centerX + (fx - w / 2) * wppBefore;
-  const wz = state.centerZ + (fy - h / 2) * wppBefore;
+  // ズーム前の焦点下ワールド座標を固定したまま viewHeight だけ変える。
+  const { x: wx, z: wz } = screenToWorld(state, fx, fy, w, h);
   const viewHeight = clamp(
     state.viewHeight / factor,
     minViewHeight,

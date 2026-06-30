@@ -1,11 +1,16 @@
 import type { HeightMapFunc } from "../../algorithm/height";
-import { heightToColor, MAX_HEIGHT } from "../../core/colormap";
 import { createProgram } from "../gl/shader";
 import { attachGestures } from "../input/gestures";
 import fragSrc from "../shaders/tile.frag?raw";
 import vertSrc from "../shaders/tile.vert?raw";
 import type { Scene } from "./scene";
-import { selectTileLevel, tileVisible, zoomAtFocus } from "./tile-lod";
+import { bakeTileTexture } from "./tile-bake";
+import {
+  screenToWorld,
+  selectTileLevel,
+  tileVisible,
+  zoomAtFocus,
+} from "./tile-lod";
 
 /**
  * Google Maps 風のタイルピラミッド（クアッドツリー）LOD で地形を真上から表示する 2D シーン。
@@ -51,33 +56,6 @@ export function createSceneHeightmap(
   // 高さ関数は setHeight() で差し替えられる。タイルはこの関数でサンプリングする。
   let height = heightFunc;
 
-  /** タイルを height() でサンプリングし、色付けした RGBA データを作る。 */
-  const buildTileData = (
-    ox: number,
-    oz: number,
-    tileWorld: number,
-  ): Uint8Array => {
-    const data = new Uint8Array(TILE_RES * TILE_RES * 4);
-    for (let j = 0; j < TILE_RES; j++) {
-      // 端を含むグリッド点で取る（i/(RES-1)）。隣接タイルが境界値を共有し継ぎ目が出ない。
-      const wz = oz + (j / (TILE_RES - 1)) * tileWorld;
-      for (let i = 0; i < TILE_RES; i++) {
-        const wx = ox + (i / (TILE_RES - 1)) * tileWorld;
-        let y = height(wx, wz);
-        if (y < 0) y = 0;
-        else if (y > MAX_HEIGHT) y = MAX_HEIGHT;
-
-        const [r, g, b] = heightToColor(y);
-        const o = (j * TILE_RES + i) * 4;
-        data[o] = r;
-        data[o + 1] = g;
-        data[o + 2] = b;
-        data[o + 3] = 255;
-      }
-    }
-    return data;
-  };
-
   const program = createProgram(gl, vertSrc, fragSrc);
   // 属性なし描画でも WebGL2 では VAO のバインドが必要。
   const vao = gl.createVertexArray();
@@ -110,7 +88,7 @@ export function createSceneHeightmap(
       0,
       gl.RGBA,
       gl.UNSIGNED_BYTE,
-      buildTileData(ox, oz, tileWorld),
+      bakeTileTexture(height, ox, oz, tileWorld, TILE_RES),
     );
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -260,6 +238,20 @@ export function createSceneHeightmap(
       gl.bindVertexArray(null);
 
       if (hud) hud.textContent = `lv: ${level} | tiles: ${cache.size}`;
+    },
+    worldAt(screenX, screenY) {
+      const { x, z } = screenToWorld(
+        { centerX, centerZ, viewHeight },
+        screenX,
+        screenY,
+        canvas.clientWidth,
+        canvas.clientHeight,
+      );
+      return { x, z, height: height(x, z) };
+    },
+    worldPerPixel() {
+      // 真上ビューなので一様（pan の worldPerPx と同じ）。
+      return viewHeight / canvas.clientHeight;
     },
     setHeight(next) {
       height = next;
