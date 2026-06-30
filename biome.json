@@ -22,6 +22,12 @@
           "level": "warn",
           "options": { "maxAllowedComplexity": 15 }
         }
+      },
+      "style": {
+        "noExcessiveLinesPerFile": {
+          "level": "warn",
+          "options": { "maxLines": 300 }
+        }
       }
     }
   },
