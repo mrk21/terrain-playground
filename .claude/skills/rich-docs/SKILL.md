@@ -1,6 +1,6 @@
 ---
 name: rich-docs
-description: terrain-playground の `docs/*.md` の図や数式を「分かりやすく・読みやすく」したいときに使う。典型的な依頼: ASCII アートや図がしょぼい/見づらいのでちゃんとした図にしたい、数式がコードブロックにベタ書きで読みにくいので組版したい、文章ばかりで頭に入らないので図解と数式を入れたい、新しく書いた docs にいい感じの図・数式を足したい、Mermaid/LaTeX/SVG が使えるならリッチにしたい——これら「docs を図解・数式でリッチ化」系はすべて対象。明示的に頼まれなくても、docs/ の Markdown に図・数式を足す/直すなら積極的に使う。やること: 関係図=Mermaid、数式=LaTeX、幾何・空間図=SVG ファイルの3層に振り分けて置換し、`npm run docs:render` で実際の描画を PNG に焼いて目視確認するまでワンセット。「図解して」「絵で分かるようにして」「数式に組版して」「描画も確認して」でも起動。対象は `docs/` の Markdown のみ。アプリ/WebGL の描画は visual-check、README 同期は update-readme。
+description: "terrain-playground の `docs/*.md` の図や数式を「分かりやすく・読みやすく」したいときに使う。典型的な依頼: ASCII アートや図がしょぼい/見づらいのでちゃんとした図にしたい、数式がコードブロックにベタ書きで読みにくいので組版したい、文章ばかりで頭に入らないので図解と数式を入れたい、新しく書いた docs にいい感じの図・数式を足したい、Mermaid/LaTeX/SVG が使えるならリッチにしたい——これら「docs を図解・数式でリッチ化」系はすべて対象。明示的に頼まれなくても、docs/ の Markdown に図・数式を足す/直すなら積極的に使う。やること: 関係図=Mermaid、数式=LaTeX、幾何・空間図=SVG ファイルの3層に振り分けて置換し、`npm run docs:render` で実際の描画を PNG に焼いて目視確認するまでワンセット。「図解して」「絵で分かるようにして」「数式に組版して」「描画も確認して」でも起動。対象は `docs/` の Markdown のみ。アプリ/WebGL の描画は visual-check、README 同期は update-readme。"
 ---
 
 # rich-docs
