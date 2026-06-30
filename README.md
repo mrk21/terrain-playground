@@ -19,6 +19,8 @@
   - linter / formatter（設定は `biome.json`）
 - WebGL2
   - 地形メッシュ・タイルの描画基盤
+- markdown-it / KaTeX / Mermaid
+  - `docs/` のドキュメント図（Mermaid 関係図・LaTeX 数式・SVG 幾何図）を PNG に焼く `docs:render` 用（ランタイム依存ではない）
 
 ## セットアップ
 
@@ -67,6 +69,10 @@ npm run test:e2e
 
 # README 用スクショ（screenshot.png）を生成
 npm run shot
+
+# docs/*.md の図（Mermaid 関係図・LaTeX 数式・SVG 幾何図）を PNG に焼いて目視確認（test-results/docs/ へ出力）
+# --theme both で light/dark 両テーマ、--clip <CSSセレクタ> で図ごとに等倍抜き出し
+npm run docs:render
 
 # フォーマット（Biome で整形して上書き）
 npm run format
@@ -120,3 +126,14 @@ e2e/
 ```
 
 seed を固定して高さ関数を決定的にし、描画の収束（`window.__terrain.settledFrames`）を待ってから描画ループを固定して `#gl` canvas を撮る。WebGL canvas をスクショで読めるよう、`src/visualization/gl/context.ts` の WebGL2 コンテキストは `preserveDrawingBuffer: true` にしている。
+
+設計メモやアルゴリズムの解説は `docs/` に置く。図は「関係図 = Mermaid / 数式 = LaTeX / 幾何図 = SVG ファイル」の 3 層で描き、開発ツールの `docs:render`（`tools/render-doc.mjs`）で 1 枚の PNG に焼いてローカル目視できる。
+
+```
+docs/
+├── *.md            # アルゴリズム・設計の解説（Mermaid / LaTeX を含む）
+└── assets/         # ドキュメントから相対参照する SVG 幾何図
+
+tools/
+└── render-doc.mjs  # docs/*.md の図を PNG に焼く開発ツール（npm run docs:render）
+```

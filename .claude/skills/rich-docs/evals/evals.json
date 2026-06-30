@@ -1,0 +1,26 @@
+{
+  "skill_name": "rich-docs",
+  "evals": [
+    {
+      "id": 0,
+      "name": "general-enrich",
+      "prompt": "docs/sample-fbm.md を書いたんだけど ASCII 図ばっかりで見づらい。図とか数式をもっと分かりやすくリッチにしてほしい。ちゃんと描画されるかも見て。",
+      "expected_output": "オクターブのループ図と積み重なり図とフローは Mermaid、振幅/周波数の式は LaTeX、幾何的な積み重なり図は docs/assets/ の SVG ファイル参照に置換。TS コードとパラメータ表はそのまま。docs:render で焼いて Mermaid/LaTeX/SVG が描画されることを確認（PNG を読む）。",
+      "files": ["files/sample-fbm.md"]
+    },
+    {
+      "id": 1,
+      "name": "math-and-flow",
+      "prompt": "docs/sample-fbm.md の fBm の式、コードフェンスにベタ書きで読みにくいからちゃんと数式にして。あと octave を重ねるループの流れもフロー図にしたい。",
+      "expected_output": "freq(i)/amp(i)/Σ の式を LaTeX（$$...$$、Σ は \\sum、添字・上付きを正しく）に。ループは Mermaid flowchart に。コード・表は触らない。docs:render で数式とフローが描画されることを確認。",
+      "files": ["files/sample-fbm.md"]
+    },
+    {
+      "id": 2,
+      "name": "verify-dark-svg",
+      "prompt": "docs/sample-fbm.md の図をリッチにしたあと、ちゃんと描画されるか docs:render で確認して。特にダークテーマで SVG や図が潰れてないか目で見てほしい。",
+      "expected_output": "3層化したうえで docs:render --theme both（または dark）で焼き、PNG を Read して light/dark 両方で図・数式・SVG が読めること、viewBox 内に収まり、⚠ mermaid 警告が出ないことを確認。SVG は中間色配色。",
+      "files": ["files/sample-fbm.md"]
+    }
+  ]
+}

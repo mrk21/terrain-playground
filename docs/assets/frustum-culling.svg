@@ -1,0 +1,34 @@
+<svg viewBox="0 0 430 180" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" role="img" aria-label="視錐台カリング：カメラから伸びる near〜far の四角錐の中だけ辿り、外のノードは AABB 判定で即カット">
+  <style>
+    .frus  { fill: #5a9bd422; stroke: #5a9bd4; stroke-width: 1.5; }
+    .plane { stroke: #5a9bd4; stroke-width: 1.2; stroke-dasharray: 4 3; }
+    .cam   { fill: #5a9bd4; }
+    .lbl   { fill: #8b949e; font-size: 11px; }
+    .cut     { stroke: #cc6666; stroke-width: 1.5; fill: none; }
+    .cutlbl  { fill: #cc6666; font-size: 10px; }
+  </style>
+
+  <!-- frustum (apex = camera, base = far plane) -->
+  <polygon class="frus" points="35,90 392,28 392,152"/>
+
+  <!-- camera -->
+  <circle class="cam" cx="35" cy="90" r="5"/>
+  <text class="lbl" x="14" y="82">カメラ</text>
+
+  <!-- near / far planes -->
+  <line class="plane" x1="112" y1="77" x2="112" y2="103"/>
+  <text class="lbl" x="112" y="120" text-anchor="middle">near</text>
+  <line class="plane" x1="392" y1="28" x2="392" y2="152"/>
+  <text class="lbl" x="392" y="166" text-anchor="middle">far</text>
+
+  <!-- inside label -->
+  <text class="lbl" x="252" y="86" text-anchor="middle">見える範囲</text>
+  <text class="lbl" x="252" y="101" text-anchor="middle">＝この中のノードだけ辿る／描く</text>
+
+  <!-- outside, culled node (placed above the top edge) -->
+  <rect class="cut" x="150" y="8" width="20" height="20"/>
+  <line class="cut" x1="150" y1="8" x2="170" y2="28"/>
+  <line class="cut" x1="170" y1="8" x2="150" y2="28"/>
+  <text class="cutlbl" x="180" y="16">視錐台の外＝AABB判定で</text>
+  <text class="cutlbl" x="180" y="30">即カット（再帰しない）</text>
+</svg>

@@ -1,0 +1,47 @@
+<svg viewBox="0 0 520 195" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" role="img" aria-label="スカートによるクラック対策：LOD差の境界に出る隙間を、縁を真下に垂らした壁で塞ぐ">
+  <style>
+    .surf  { fill: none; stroke: #5a9bd4; stroke-width: 1.6; }
+    .vtx   { fill: #5a9bd4; }
+    .skirt { fill: #5a9bd433; stroke: #5a9bd4; stroke-width: 1; }
+    .lbl   { fill: #8b949e; font-size: 11px; }
+    .ttl   { fill: #8b949e; font-size: 11px; font-weight: bold; }
+    .bad     { stroke: #cc6666; stroke-width: 1.4; fill: none; }
+    .baddash { stroke: #cc6666; stroke-width: 1.2; stroke-dasharray: 3 2; fill: none; }
+    .badlbl  { fill: #cc6666; font-size: 10px; }
+  </style>
+
+  <!-- ===== Panel A: 問題（クラック）===== -->
+  <text class="ttl" x="115" y="20" text-anchor="middle">LOD差の境界 → 隙間（クラック）</text>
+  <!-- fine node surface (many vertices) -->
+  <polyline class="surf" points="20,70 36,60 52,66 68,56 84,64 100,58"/>
+  <g class="vtx">
+    <circle cx="20" cy="70" r="2.2"/><circle cx="36" cy="60" r="2.2"/><circle cx="52" cy="66" r="2.2"/>
+    <circle cx="68" cy="56" r="2.2"/><circle cx="84" cy="64" r="2.2"/><circle cx="100" cy="58" r="2.2"/>
+  </g>
+  <text class="lbl" x="62" y="95" text-anchor="middle">深いノード（細かい）</text>
+  <!-- coarse node surface (2 vertices) -->
+  <polyline class="surf" points="120,74 210,70"/>
+  <g class="vtx"><circle cx="120" cy="74" r="2.2"/><circle cx="210" cy="70" r="2.2"/></g>
+  <text class="lbl" x="168" y="95" text-anchor="middle">浅いノード（粗い）</text>
+  <!-- crack gap between the two edges -->
+  <line class="baddash" x1="100" y1="58" x2="100" y2="74"/>
+  <line class="baddash" x1="120" y1="58" x2="120" y2="74"/>
+  <path class="bad" d="M100,58 L120,74"/>
+  <text class="badlbl" x="110" y="50" text-anchor="middle">隙間</text>
+
+  <!-- ===== Panel B: 対策（スカート）===== -->
+  <text class="ttl" x="375" y="20" text-anchor="middle">縁を真下へ垂らす壁＝スカート</text>
+  <!-- skirts drawn first so the surface sits on top -->
+  <rect class="skirt" x="356" y="58" width="8" height="100"/>
+  <rect class="skirt" x="376" y="74" width="8" height="84"/>
+  <!-- fine node surface -->
+  <polyline class="surf" points="280,70 296,60 312,66 328,56 344,64 360,58"/>
+  <g class="vtx">
+    <circle cx="280" cy="70" r="2.2"/><circle cx="296" cy="60" r="2.2"/><circle cx="312" cy="66" r="2.2"/>
+    <circle cx="328" cy="56" r="2.2"/><circle cx="344" cy="64" r="2.2"/><circle cx="360" cy="58" r="2.2"/>
+  </g>
+  <!-- coarse node surface -->
+  <polyline class="surf" points="380,74 470,70"/>
+  <g class="vtx"><circle cx="380" cy="74" r="2.2"/><circle cx="470" cy="70" r="2.2"/></g>
+  <text class="lbl" x="375" y="178" text-anchor="middle">スカート（地形全高より深く垂らす → 段差を隠す）</text>
+</svg>

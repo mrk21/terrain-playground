@@ -14,6 +14,7 @@
     "test:run": "vitest run",
     "test:e2e": "playwright test e2e/regression.spec.ts",
     "shot": "playwright test e2e/readme-shot.spec.ts",
+    "docs:render": "node tools/render-doc.mjs",
     "format": "biome format --write .",
     "lint": "biome lint .",
     "check": "biome check --write ."
@@ -21,6 +22,10 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.1",
     "@playwright/test": "^1.61.1",
+    "@vscode/markdown-it-katex": "^1.1.2",
+    "katex": "^0.17.0",
+    "markdown-it": "^14.2.0",
+    "mermaid": "^11.16.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
     "vitest": "^4.1.9"

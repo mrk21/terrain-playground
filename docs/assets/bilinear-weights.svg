@@ -1,0 +1,67 @@
+<svg viewBox="0 0 360 246" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" role="img" aria-label="双線形補間の重み：内部点(tx,ty)がセルを4枚のタイルに分け、各頂点の重みは対角の頂点まで作る長方形の面積に等しい。近い頂点ほどタイルが大きく、4枚の合計は1">
+  <style>
+    .edge  { fill: none; stroke: #5a9bd4; stroke-width: 1.4; }
+    .tile  { fill: #5a9bd4; stroke: #5a9bd4; stroke-width: 0.6; }
+    .cross { stroke: #8b949e; stroke-width: 1; stroke-dasharray: 4 3; }
+    .cdot  { fill: #5a9bd4; }
+    .gdot  { fill: #4f9d69; }
+    .pt    { fill: #8b949e; }
+    .lbl   { fill: #8b949e; font-size: 11px; }
+    .tlbl  { fill: #8b949e; font-size: 10px; }
+    .texpr { fill: #8b949e; font-size: 9px; }
+    .hi    { fill: none; stroke: #4f9d69; stroke-width: 1.8; }
+    .hidash{ stroke: #4f9d69; stroke-width: 1.4; stroke-dasharray: 5 3; fill: none; }
+    .harr  { fill: #4f9d69; }
+    .hlbl  { fill: #4f9d69; font-size: 10px; font-weight: bold; }
+    .hexpr { fill: #4f9d69; font-size: 9px; }
+    .cap   { fill: #8b949e; font-size: 10px; }
+  </style>
+
+  <!-- tiles: fill-opacity ~ area = weight -->
+  <rect class="tile" x="90"  y="50"  width="112" height="56" fill-opacity="0.30"/>
+  <rect class="tile" x="202" y="50"  width="68"  height="56" fill-opacity="0.22"/>
+  <rect class="tile" x="90"  y="106" width="112" height="84" fill-opacity="0.42"/>
+  <rect class="tile" x="202" y="106" width="68"  height="84" fill-opacity="0.28"/>
+
+  <!-- cell border -->
+  <rect class="edge" x="90" y="50" width="180" height="140"/>
+
+  <!-- crosshair through (tx,ty) -->
+  <line class="cross" x1="202" y1="50" x2="202" y2="190"/>
+  <line class="cross" x1="90" y1="106" x2="270" y2="106"/>
+
+  <!-- worked example: the nearest corner v10 (top-right) and its opposite tile (bottom-left, largest), paired by colour across the diagonal -->
+  <rect class="hi" x="90" y="106" width="112" height="84"/>
+
+  <!-- corner dots & labels -->
+  <g class="cdot">
+    <circle cx="90" cy="50" r="3"/><circle cx="90" cy="190" r="3"/><circle cx="270" cy="190" r="3"/>
+  </g>
+  <circle class="gdot" cx="270" cy="50" r="4"/>
+  <text class="lbl"  x="84"  y="46"  text-anchor="end">v00</text>
+  <text class="hlbl" x="276" y="46"  text-anchor="start">v10</text>
+  <text class="hexpr" x="276" y="60" text-anchor="start">最も近い頂点</text>
+  <text class="lbl"  x="84"  y="202" text-anchor="end">v01</text>
+  <text class="lbl"  x="276" y="202" text-anchor="start">v11</text>
+
+  <!-- point (tx,ty) -->
+  <circle class="pt" cx="202" cy="106" r="3"/>
+  <text class="lbl" x="198" y="100" text-anchor="end">(tx, ty)</text>
+
+  <!-- tile labels: each tile area = the OPPOSITE corner's weight -->
+  <text class="tlbl"  x="146" y="76" text-anchor="middle">v11 の重み</text>
+  <text class="texpr" x="146" y="89" text-anchor="middle">tx · ty</text>
+
+  <text class="tlbl"  x="236" y="76" text-anchor="middle">v01 の重み</text>
+  <text class="texpr" x="236" y="89" text-anchor="middle">(1-tx) ty</text>
+
+  <text class="hlbl"  x="146" y="150" text-anchor="middle">v10 の重み</text>
+  <text class="hexpr" x="146" y="163" text-anchor="middle">tx (1-ty)　← 最大</text>
+
+  <text class="tlbl"  x="236" y="150" text-anchor="middle">v00 の重み</text>
+  <text class="texpr" x="236" y="163" text-anchor="middle">(1-tx)(1-ty)</text>
+
+  <!-- captions -->
+  <text class="cap" x="180" y="218" text-anchor="middle">各頂点の重み ＝ 対角の頂点まで作る長方形の面積（近い頂点ほど大きい）</text>
+  <text class="cap" x="180" y="234" text-anchor="middle">4枚のタイルでセルを埋めるので、重みの合計 ＝ 1</text>
+</svg>

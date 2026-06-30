@@ -26,6 +26,11 @@
 - 仕組みと前提は README「ディレクトリ構成」と `e2e/`・`src/visualization/gl/context.ts` のコメント参照（seed 固定で決定的化／収束待ち `window.__terrain.settledFrames`／撮影前に `freeze()`／`preserveDrawingBuffer: true`）。baseline は OS 依存（`-chromium-darwin`）なので、別 OS の CI に載せるならその OS で baseline を生成する。
 - README 用スクリーンショットを更新したいときは `npm run shot`（`screenshot.png` を生成、README が参照）。
 
+## docs/ の図・数式（リッチ化）
+
+- `docs/*.md` に図・数式を足す/直すときは「**関係図=Mermaid / 数式=LaTeX / 幾何図=SVG ファイル（`docs/assets/`）**」の3層で描く。ASCII アートやコードフェンスにベタ書きした数式を見つけたら、頼まれなくても3層化を提案・実施する。手順は `/rich-docs`。
+- 置換しただけで終えず、`npm run docs:render` で**実際の描画を PNG に焼いて目視確認**する（Mermaid が構文エラーで出ない／数式が崩れる／SVG が dark テーマで潰れる、はレンダリングしないと気づけない）。`visualization/` の絵（実描画）の視覚回帰は visual-check と役割分担——**ドキュメントの図は `/rich-docs`、アプリの絵は視覚回帰**。
+
 ## 複雑度と設計見直し
 
 `npm run check`（Biome）は認知的複雑度を測る `noExcessiveCognitiveComplexity`（閾値15）を含む。**層を問わず**、編集後にこの警告が出た関数は「設計を見直す合図」。数値を下げること自体が目的ではないので、警告を踏んだら盛る前に一度止まって判断する:
