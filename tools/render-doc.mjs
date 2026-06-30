@@ -100,10 +100,36 @@ async function capture(page, outDir, stem, theme, clip) {
   return outs;
 }
 
+// GitHub の MathJax は markdown が先に `\_`→`_` を戻すため、`\text{}` など text mode
+// 内の下線で「'_' allowed only in math mode」になり数式ごと壊れる。KaTeX で焼くこのツール
+// は通してしまうので、ソース段階で警告する（記号＋凡例に直す合図）。`\log_2` の math mode
+// 添字 `_{...}` は安全なので、text wrapper 内の下線だけを拾う。
+function lintGithubMath(source) {
+  const segs = [];
+  for (const m of source.matchAll(/\$\$([\s\S]*?)\$\$/g)) segs.push(m[1]);
+  for (const m of source.matchAll(/(?<!\$)\$(?!\$)([^\n$]+?)\$(?!\$)/g))
+    segs.push(m[1]);
+  const textGroup =
+    /\\(?:text|mathrm|mathit|mathbf|mathsf|texttt|operatorname)\{[^}]*?\\?_[^}]*?\}/;
+  const warns = [];
+  for (const seg of segs) {
+    const m = seg.match(textGroup);
+    if (m) warns.push(m[0]);
+    else if (/\\_/.test(seg)) warns.push(seg.trim().slice(0, 48));
+  }
+  return warns;
+}
+
 async function renderDoc(page, mdPath, theme, clip) {
   const abs = path.resolve(mdPath);
   const docDir = path.dirname(abs);
-  const bodyHtml = md.render(await readFile(abs, "utf8"));
+  const source = await readFile(abs, "utf8");
+  for (const w of lintGithubMath(source)) {
+    console.warn(
+      `  ⚠ GitHub数式: text mode 内の下線は GitHub で壊れる（記号＋凡例に）: ${w}`,
+    );
+  }
+  const bodyHtml = md.render(source);
   const katexCssUrl = pathToFileURL(
     path.join(ROOT, "node_modules/katex/dist/katex.min.css"),
   ).href;

@@ -77,7 +77,7 @@ $$\frac{\text{BASE\_TILE\_WORLD}}{2^{L}\cdot \text{TILE\_RES}} = \text{worldPerP
 
 **落とし穴:**
 
-- **`\text{}` の中の `_` は `\_` でエスケープ**。`\text{BASE\_TILE\_WORLD}` → `BASE_TILE_WORLD`。エスケープしないと添字扱いで崩れる。
+- **数式に `_`（アンダースコア）を入れない——GitHub で数式ごと壊れる**（最重要）。GitHub は「markdown→数式」の順で処理し、ソースの `\_` を `_` に戻してから MathJax に渡す。すると `\text{...}`（text mode）内の `_` が **`'_' allowed only in math mode`** で弾かれ、**その数式は描画されず生ソースがそのまま出る**。しかも **`docs:render` は KaTeX で焼くのでこの罠を見逃す**（KaTeX は `\_` を通す＝GitHub の MathJax と挙動が違う。docs:render が緑でも GitHub で確認が要る理由）。対策: `BASE_TILE_WORLD` のような SCREAMING_SNAKE 定数を数式に直書きせず、**短い記号＋凡例**にする（式では $B$ を使い、本文で「$B$ は `BASE_TILE_WORLD`」と添える。定数名はコードスパン \`...\` に置けば下線は安全）。**`\log_2` のような math mode の添字 `_{...}` は問題ない**——壊れるのは `\text{}`/`\mathrm{}` など **text mode 内の下線**だけ。
 - **インライン式は `$` のペアが偶数**になるように。1行に複数式（`$a$、$b$、$c$`）でも左から順にペアになるので OK。
 - 変数名は `\text{worldPerPixel}` のようにローマン体で。素の `worldPerPixel` はイタリックの積に見える。
 - よく使う: `\frac{}{}` 分数 / `2^{L}` 上付き / `\log_{2}` / `\tan` / `\tfrac{1}{2}` 小さい分数 / `\Longrightarrow` 太い矢印 / `\!` 詰め / `\left( \right)` 自動サイズ括弧。

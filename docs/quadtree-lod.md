@@ -120,15 +120,16 @@ const MAX_LEVEL       = 12;   // 拡大しすぎ防止
 ズーム量から、テクスチャがちょうど等倍で表示されるレベルを 1 つ選ぶ。
 
 $$\text{worldPerPixel} = \frac{\text{viewHeight}}{\text{drawingBufferHeight}}
-\qquad \text{texelWorld}(L) = \frac{\text{BASE\_TILE\_WORLD}}{2^{L}\cdot \text{TILE\_RES}}$$
+\qquad \text{texelWorld}(L) = \frac{B}{2^{L}\cdot R}$$
 
 ここで `worldPerPixel` は画面 1px が映すワールド長、`texelWorld(L)` はレベル L の 1 テクセルのワールド長。
+式中の $B$ は `BASE_TILE_WORLD`、$R$ は `TILE_RES`（コード定数）。
 
 `texelWorld(L) ≈ worldPerPixel` になる `L` を解く:
 
-$$\frac{\text{BASE\_TILE\_WORLD}}{2^{L}\cdot \text{TILE\_RES}} = \text{worldPerPixel}
-\;\Longrightarrow\; 2^{L} = \frac{\text{BASE\_TILE\_WORLD}}{\text{TILE\_RES}\cdot \text{worldPerPixel}}
-\;\Longrightarrow\; L = \log_{2}\!\left(\frac{\text{BASE\_TILE\_WORLD}}{\text{TILE\_RES}\cdot \text{worldPerPixel}}\right)$$
+$$\frac{B}{2^{L}\cdot R} = \text{worldPerPixel}
+\;\Longrightarrow\; 2^{L} = \frac{B}{R\cdot \text{worldPerPixel}}
+\;\Longrightarrow\; L = \log_{2}\!\left(\frac{B}{R\cdot \text{worldPerPixel}}\right)$$
 
 実コードはこれを丸めてクランプするだけ:
 
