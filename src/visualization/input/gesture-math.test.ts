@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { decayStep, sampleVelocity, twoFingerGesture } from "./gesture-math";
+import {
+  createDragSlopGate,
+  decayStep,
+  sampleVelocity,
+  twoFingerGesture,
+} from "./gesture-math";
 
 describe("twoFingerGesture", () => {
   it("2 点の重心・間隔・角度を返す（水平に並ぶ場合）", () => {
@@ -96,6 +101,43 @@ describe("sampleVelocity", () => {
       100,
     );
     expect(v).toBe(0);
+  });
+});
+
+describe("createDragSlopGate", () => {
+  it("arm する前は常に素通し（通常のドラッグはデッドゾーンなし）", () => {
+    const gate = createDragSlopGate(24);
+    expect(gate.passes({ x: 0, y: 0 })).toBe(true);
+    expect(gate.passes({ x: 100, y: 100 })).toBe(true);
+  });
+
+  it("arm 後、アンカーから slop 以内はパンを抑制する（ピンチ離しのドリフトを食べる）", () => {
+    const gate = createDragSlopGate(24);
+    gate.arm({ x: 50, y: 50 });
+    expect(gate.passes({ x: 55, y: 50 })).toBe(false); // 5px
+    expect(gate.passes({ x: 50, y: 70 })).toBe(false); // 20px
+  });
+
+  it("ちょうど slop は抑制、超えたら初めて通す（境界は <=）", () => {
+    const gate = createDragSlopGate(24);
+    gate.arm({ x: 0, y: 0 });
+    expect(gate.passes({ x: 24, y: 0 })).toBe(false); // == slop
+    expect(gate.passes({ x: 25, y: 0 })).toBe(true); // > slop
+  });
+
+  it("一度 slop を超えたら解除され、アンカー近くへ戻っても素通しのまま（ヒステリシス）", () => {
+    const gate = createDragSlopGate(24);
+    gate.arm({ x: 0, y: 0 });
+    expect(gate.passes({ x: 30, y: 0 })).toBe(true); // 解除
+    expect(gate.passes({ x: 1, y: 0 })).toBe(true); // 戻っても抑制しない
+  });
+
+  it("disarm すると即座に素通しに戻る", () => {
+    const gate = createDragSlopGate(24);
+    gate.arm({ x: 0, y: 0 });
+    expect(gate.passes({ x: 1, y: 0 })).toBe(false);
+    gate.disarm();
+    expect(gate.passes({ x: 1, y: 0 })).toBe(true);
   });
 });
 

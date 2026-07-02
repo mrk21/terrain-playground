@@ -16,7 +16,7 @@
  */
 import { wrapAngleDelta } from "../../core/math/scalar";
 import { createGestureInertia } from "./gesture-inertia";
-import { twoFingerGesture } from "./gesture-math";
+import { createDragSlopGate, twoFingerGesture } from "./gesture-math";
 
 export interface GestureTarget {
   /** 1 本指 / マウスのドラッグ。dx,dy は CSS px。shift はデスクトップ回転用。 */
@@ -44,6 +44,12 @@ const TAP_MAX_MS = 250;
 const TAP_SLOP = 24;
 /** 1 本指ズームの感度（px あたりの指数）。下方向 1px で exp(0.01) 倍。 */
 const ONE_FINGER_ZOOM_PER_PX = 0.01;
+/**
+ * ピンチを離した直後、残り 1 本指をパンに化けさせないためのデッドゾーン（CSS px）。
+ * 2 本指は同時に離れず残り指がドリフトするので、ここを超える明確な動きが出るまで
+ * パンを抑制する。TAP_SLOP と同じ指の太さぶんのゆとり。詳細は createDragSlopGate。
+ */
+const POST_PINCH_DRAG_SLOP = 128;
 /** ダブルタップ／2 本指タップ 1 回ぶんのズーム倍率。 */
 const STEP_ZOOM = 2;
 
@@ -58,6 +64,8 @@ export function attachGestures(
 
   // ドラッグ（1 本指）状態。
   const last: Pt = { x: 0, y: 0 };
+  // ピンチ直後の残り指ドリフトをパンに化けさせないデッドゾーン（arm 時のみ有効）。
+  const dragGate = createDragSlopGate(POST_PINCH_DRAG_SLOP);
   // 慣性（指を離すと徐々に減速して止まる）。パン/回転/傾け/ズームを滑らせる。
   const inertia = createGestureInertia(target);
   // ピンチ（2 本指）状態。重心は傾け（縦）にだけ使うので y のみ保持。
@@ -98,13 +106,31 @@ export function attachGestures(
     return twoFingerGesture(a, b);
   };
 
-  const beginDrag = (t: number): void => {
+  // afterMulti=true は「2 本指ジェスチャを離した直後」の遷移。残り指のドリフトを
+  // パンに化けさせないよう、アンカーから離れるまでパンを抑制するゲートを張る。
+  const beginDrag = (t: number, afterMulti = false): void => {
     const p = pointers.values().next().value as Pt;
     last.x = p.x;
     last.y = p.y;
+    if (afterMulti) dragGate.arm(p);
+    else dragGate.disarm();
     // パンも Shift+ドラッグ回転も滑らせる（replay 時に shift で振り分ける）。
     inertia.dragBegin(p.x, p.y, t, shift);
     mode = "drag";
+  };
+
+  // 1 本指ドラッグ 1 手ぶん。ピンチ直後はデッドゾーンを超えるまでパンを抑制する。
+  const handleDragMove = (p: Pt, t: number): void => {
+    const dx = p.x - last.x;
+    const dy = p.y - last.y;
+    last.x = p.x;
+    last.y = p.y;
+    moved = Math.max(moved, Math.hypot(p.x - downX, p.y - downY));
+    // ドリフト抑制中は last だけ進めて何もしない（解除後にパンが飛ばない）。
+    if (!dragGate.passes(p)) return;
+    // フリング速度推定用に軌跡を記録する。
+    inertia.dragMove(p.x, p.y, t);
+    if (dx !== 0 || dy !== 0) target.onDrag?.(dx, dy, shift);
   };
 
   const beginPinch = (t: number): void => {
@@ -161,14 +187,7 @@ export function attachGestures(
     pt.y = p.y;
 
     if (mode === "drag" && pointers.size === 1) {
-      const dx = p.x - last.x;
-      const dy = p.y - last.y;
-      last.x = p.x;
-      last.y = p.y;
-      moved = Math.max(moved, Math.hypot(p.x - downX, p.y - downY));
-      // フリング速度推定用に軌跡を記録する。
-      inertia.dragMove(p.x, p.y, e.timeStamp);
-      if (dx !== 0 || dy !== 0) target.onDrag?.(dx, dy, shift);
+      handleDragMove(p, e.timeStamp);
     } else if (mode === "zoom" && pointers.size === 1) {
       const dy = p.y - zoomLastY;
       zoomLastY = p.y;
@@ -234,8 +253,9 @@ export function attachGestures(
     }
 
     // 指の数が変わったら、残りの指で次のモードを開始（座標を取り直すので飛ばない）。
+    // 2 本指→1 本の遷移では、残り指のドリフトを吸収するデッドゾーンを張る。
     if (pointers.size === 1) {
-      beginDrag(e.timeStamp);
+      beginDrag(e.timeStamp, true);
     } else if (pointers.size >= 2) {
       beginPinch(e.timeStamp);
     } else {

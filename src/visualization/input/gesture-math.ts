@@ -18,6 +18,46 @@ export interface TwoFingerGesture {
   angle: number;
 }
 
+/**
+ * ピンチ直後の 1 本指ドラッグ用スロップゲート。2 本指ピンチは同時に離れず、残った
+ * 1 本が数フレームわずかにドリフトする。これをそのままパンに流すと、指を 1 本ずつ
+ * 離すたびに地図が動いてしまう。そこで残り指が 1 本になった位置（アンカー）から
+ * `slop`（CSS px）を超える明確な動きが出るまでパンを抑制し、超えたら以降は素通しする
+ * （Google Maps と同じデッドゾーン）。一度超えたら解除は一度きり——アンカー付近へ
+ * 戻っても再び抑制しない（意図したパンの途中で止まらないよう、ヒステリシスを持たせる）。
+ */
+export interface DragSlopGate {
+  /** ゲートを張る。以降 anchor から slop を超えるまで passes は false を返す。 */
+  arm(anchor: Point): void;
+  /** ゲートを外す（常に素通し）。通常の 1 本指/マウスドラッグ開始時に使う。 */
+  disarm(): void;
+  /** この点でパンを出してよいか。armed 中は slop 超えで初めて true になり、以後解除。 */
+  passes(p: Point): boolean;
+}
+
+/** `slop`（CSS px）のデッドゾーンを持つドラッグゲートを作る。初期状態は素通し。 */
+export function createDragSlopGate(slop: number): DragSlopGate {
+  let armed = false;
+  let ax = 0;
+  let ay = 0;
+  return {
+    arm(anchor) {
+      armed = true;
+      ax = anchor.x;
+      ay = anchor.y;
+    },
+    disarm() {
+      armed = false;
+    },
+    passes(p) {
+      if (!armed) return true;
+      if (Math.hypot(p.x - ax, p.y - ay) <= slop) return false;
+      armed = false; // しきい値超え＝意図したパン。以後は解除したまま。
+      return true;
+    },
+  };
+}
+
 /** 2 点から重心・間隔・角度を取り出す。 */
 export function twoFingerGesture(a: Point, b: Point): TwoFingerGesture {
   const dx = b.x - a.x;
