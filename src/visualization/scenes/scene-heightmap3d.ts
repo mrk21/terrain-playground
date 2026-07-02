@@ -16,8 +16,13 @@ import {
   HEIGHT_SCALE,
   MAX_DISTANCE,
   MIN_DISTANCE,
+  MOVING_BUILD_BUDGET,
   TARGET_Y,
 } from "./terrain3d-config";
+import { type CameraPose, viewMovedFast } from "./view-motion";
+
+/** 「速く動いている」とみなす 1 フレームの変化しきい値（滑走中はタイル生成を絞る）。 */
+const MOTION_THRESHOLDS = { panPx: 12, zoomLog: 0.015, rotRad: 0.015 };
 
 /**
  * 地形をクアッドツリー LOD で描く 3D シーン。
@@ -107,6 +112,16 @@ export function createSceneHeightmap3D(
   const mvp = mat4.create();
   const planes = new Float32Array(24);
 
+  // 前フレームの視点姿勢。速い動き（滑走中）を検知してタイル生成予算を絞るのに使う。
+  let prevPose: CameraPose | null = null;
+  const currentPose = (): CameraPose => ({
+    tx: target[0],
+    tz: target[2],
+    distance,
+    yaw,
+    pitch,
+  });
+
   return {
     render() {
       gl.enable(gl.DEPTH_TEST);
@@ -131,8 +146,18 @@ export function createSceneHeightmap3D(
       extractFrustumPlanes(mvp, planes);
 
       // 描画ノードを集め、不足分の生成と超過分の退避を行う。
+      // 視点が速く動いている間（慣性の滑走中など）は生成予算を絞り、粗い親で覆ったまま
+      // 滑らせてフレームを軽く保つ。止まれば通常予算で細部を焼き直して鮮明化する。
+      const pose = currentPose();
+      const worldPerPx =
+        (2 * distance * Math.tan(FOV / 2)) / canvas.clientHeight;
+      const fast =
+        prevPose !== null &&
+        viewMovedFast(prevPose, pose, worldPerPx, MOTION_THRESHOLDS);
+      prevPose = pose;
+
       const renderList = tiles.collect({ eyeX, eyeY, eyeZ, screenK, planes });
-      tiles.maintain();
+      tiles.maintain(fast ? MOVING_BUILD_BUDGET : undefined);
 
       gl.useProgram(program);
       gl.uniformMatrix4fv(uMvp, false, mvp);

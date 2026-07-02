@@ -56,8 +56,12 @@ export interface TerrainTiles {
   readonly size: number;
   /** このフレームの描画ノード（重なり・穴なしの覆い）を集めて返す。 */
   collect(view: CameraView): TerrainNode[];
-  /** 不足ノードを手前優先で生成し、超過分を LRU で解放する。collect の後に呼ぶ。 */
-  maintain(): void;
+  /**
+   * 不足ノードを手前優先で生成し、超過分を LRU で解放する。collect の後に呼ぶ。
+   * budget は 1 フレームに新規生成するノード数の上限（省略時は BUILD_BUDGET）。
+   * 視点が速く動いている間は小さくしてフレームを軽く保つ（粗いまま滑らせる）。
+   */
+  maintain(budget?: number): void;
   /** 直近の collect で目標解像度まで収束したか（粗いフォールバックが残っていない）。 */
   settled(): boolean;
   /** 高さ関数を差し替える（既存ノードを破棄し、次フレームで生成し直す）。 */
@@ -251,11 +255,11 @@ export function createTerrainTiles(
     enqueueChildren(depth, nx, nz);
   };
 
-  // ビルドキューを手前（dist 小）優先で BUILD_BUDGET 個まで生成する。
-  const drainBuildQueue = (): void => {
+  // ビルドキューを手前（dist 小）優先で budget 個まで生成する。
+  const drainBuildQueue = (budget: number): void => {
     buildQueue.sort((a, b) => a.dist - b.dist);
     for (const req of buildQueue) {
-      if (builtThisFrame >= BUILD_BUDGET) break;
+      if (builtThisFrame >= budget) break;
       const k = nodeKey(req.depth, req.nx, req.nz);
       if (cache.has(k)) continue; // フォールバックで既に生成済み
       cache.set(k, buildNode(req.depth, req.nx, req.nz));
@@ -308,8 +312,8 @@ export function createTerrainTiles(
       }
       return out;
     },
-    maintain() {
-      drainBuildQueue();
+    maintain(budget = BUILD_BUDGET) {
+      drainBuildQueue(budget);
       evictCache();
     },
     settled() {

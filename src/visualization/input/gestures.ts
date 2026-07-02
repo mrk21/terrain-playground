@@ -15,6 +15,7 @@
  * 原点とする CSS ピクセル座標で、ズーム時に指の下の地点が動かないよう合わせるのに使う。
  */
 import { wrapAngleDelta } from "../../core/math/scalar";
+import { createGestureInertia } from "./gesture-inertia";
 import { twoFingerGesture } from "./gesture-math";
 
 export interface GestureTarget {
@@ -57,6 +58,8 @@ export function attachGestures(
 
   // ドラッグ（1 本指）状態。
   const last: Pt = { x: 0, y: 0 };
+  // 慣性（指を離すと徐々に減速して止まる）。パン/回転/傾け/ズームを滑らせる。
+  const inertia = createGestureInertia(target);
   // ピンチ（2 本指）状態。重心は傾け（縦）にだけ使うので y のみ保持。
   let prevCy = 0;
   let prevDist = 1;
@@ -95,10 +98,12 @@ export function attachGestures(
     return twoFingerGesture(a, b);
   };
 
-  const beginDrag = (): void => {
+  const beginDrag = (t: number): void => {
     const p = pointers.values().next().value as Pt;
     last.x = p.x;
     last.y = p.y;
+    // パンも Shift+ドラッグ回転も滑らせる（replay 時に shift で振り分ける）。
+    inertia.dragBegin(p.x, p.y, t, shift);
     mode = "drag";
   };
 
@@ -111,10 +116,13 @@ export function attachGestures(
     pinchMoved = 0;
     pinchCx = g.cx;
     pinchCy = g.cy;
+    inertia.pinchBegin(t);
     mode = "pinch";
   };
 
   const onPointerDown = (e: PointerEvent): void => {
+    // 新しい接触は進行中の慣性を止める（滑っている地図を指で押さえる）。
+    inertia.cancel();
     const p = rel(e);
     pointers.set(e.pointerId, p);
     canvas.setPointerCapture(e.pointerId);
@@ -135,8 +143,9 @@ export function attachGestures(
         zoomFy = p.y;
         zoomLastY = p.y;
         lastTapTime = -Infinity; // 消費
+        inertia.zoomBegin(e.timeStamp);
       } else {
-        beginDrag();
+        beginDrag(e.timeStamp);
       }
     } else if (pointers.size === 2) {
       beginPinch(e.timeStamp);
@@ -157,24 +166,32 @@ export function attachGestures(
       last.x = p.x;
       last.y = p.y;
       moved = Math.max(moved, Math.hypot(p.x - downX, p.y - downY));
+      // フリング速度推定用に軌跡を記録する。
+      inertia.dragMove(p.x, p.y, e.timeStamp);
       if (dx !== 0 || dy !== 0) target.onDrag?.(dx, dy, shift);
     } else if (mode === "zoom" && pointers.size === 1) {
       const dy = p.y - zoomLastY;
       zoomLastY = p.y;
       moved = Math.max(moved, Math.hypot(p.x - downX, p.y - downY));
       // 下へドラッグ（dy>0）で拡大、上へで縮小。焦点はダブルタップ位置に固定。
-      if (dy !== 0)
-        target.onPinch?.(Math.exp(dy * ONE_FINGER_ZOOM_PER_PX), zoomFx, zoomFy);
+      if (dy !== 0) {
+        const scale = Math.exp(dy * ONE_FINGER_ZOOM_PER_PX);
+        target.onPinch?.(scale, zoomFx, zoomFy);
+        inertia.zoomMove(scale, zoomFx, zoomFy, e.timeStamp); // ズーム慣性用に記録
+      }
     } else if (mode === "pinch" && pointers.size >= 2) {
       const g = twoFinger();
       pinchMoved +=
         Math.hypot(g.cx - pinchCx, g.cy - pinchCy) +
         Math.abs(g.dist - prevDist);
-      if (g.dist !== prevDist) target.onPinch?.(g.dist / prevDist, g.cx, g.cy);
+      const scale = g.dist / prevDist;
+      if (g.dist !== prevDist) target.onPinch?.(scale, g.cx, g.cy);
       const da = wrapAngleDelta(g.angle - prevAngle);
       if (da !== 0) target.onTwist?.(da, g.cx, g.cy);
       const dcy = g.cy - prevCy;
       if (dcy !== 0) target.onTilt?.(dcy);
+      // ズーム/回転/傾けの慣性用に 1 手ぶんを記録する。
+      inertia.pinchMove(scale, da, dcy, g.cx, g.cy, e.timeStamp);
       prevCy = g.cy;
       prevDist = g.dist;
       prevAngle = g.angle;
@@ -217,9 +234,15 @@ export function attachGestures(
     }
 
     // 指の数が変わったら、残りの指で次のモードを開始（座標を取り直すので飛ばない）。
-    if (pointers.size === 1) beginDrag();
-    else if (pointers.size >= 2) beginPinch(e.timeStamp);
-    else mode = "none";
+    if (pointers.size === 1) {
+      beginDrag(e.timeStamp);
+    } else if (pointers.size >= 2) {
+      beginPinch(e.timeStamp);
+    } else {
+      mode = "none";
+      // 最後の指が離れた：慣性で滑らせる（パン/回転/傾け/ズーム。微小速度は inertia 側で無視）。
+      inertia.release(e.timeStamp);
+    }
     e.preventDefault();
   };
 
@@ -242,6 +265,7 @@ export function attachGestures(
   canvas.addEventListener("gestureend", onSafariGesture);
 
   return () => {
+    inertia.cancel();
     canvas.removeEventListener("pointerdown", onPointerDown);
     canvas.removeEventListener("pointermove", onPointerMove);
     canvas.removeEventListener("pointerup", onPointerUp);
