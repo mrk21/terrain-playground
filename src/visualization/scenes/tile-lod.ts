@@ -9,6 +9,31 @@ export interface ViewState {
   centerX: number;
   centerZ: number;
   viewHeight: number;
+  /**
+   * 地図の回転角（ラジアン）。0 で北が上（既定の真上ビュー）。3D の yaw と同じ向きで、
+   * 増えると地図が回る。省略時は 0（回転なし）として扱う。
+   */
+  heading?: number;
+}
+
+/**
+ * 画面オフセット（canvas 上の px 方向、右が +sx・下が +sy）を、heading だけ回した
+ * ビューでのワールド方向 [dx,dz] に写す（長さはそのまま）。screenToWorld・焦点固定ズーム・
+ * 回転がすべてこの 1 つの回転を共有する。
+ *   screenRight = (cosθ, sinθ), screenDown = (−sinθ, cosθ)
+ * heading=0 なら (dx,dz)=(sx,sy) で、従来の軸そろいの真上ビューに一致する。
+ */
+export function screenOffsetToWorld(
+  sx: number,
+  sy: number,
+  heading: number,
+): { dx: number; dz: number } {
+  const c = Math.cos(heading);
+  const s = Math.sin(heading);
+  return {
+    dx: sx * c - sy * s, // sx*right.x + sy*down.x
+    dz: sx * s + sy * c, // sx*right.z + sy*down.z
+  };
 }
 
 /**
@@ -42,9 +67,14 @@ export function screenToWorld(
   h: number,
 ): { x: number; z: number } {
   const worldPerPx = state.viewHeight / h;
+  const { dx, dz } = screenOffsetToWorld(
+    fx - w / 2,
+    fy - h / 2,
+    state.heading ?? 0,
+  );
   return {
-    x: state.centerX + (fx - w / 2) * worldPerPx,
-    z: state.centerZ + (fy - h / 2) * worldPerPx,
+    x: state.centerX + dx * worldPerPx,
+    z: state.centerZ + dz * worldPerPx,
   };
 }
 
@@ -64,6 +94,7 @@ export function zoomAtFocus(
   maxViewHeight: number,
 ): ViewState {
   // ズーム前の焦点下ワールド座標を固定したまま viewHeight だけ変える。
+  const heading = state.heading ?? 0;
   const { x: wx, z: wz } = screenToWorld(state, fx, fy, w, h);
   const viewHeight = clamp(
     state.viewHeight / factor,
@@ -71,10 +102,56 @@ export function zoomAtFocus(
     maxViewHeight,
   );
   const wppAfter = viewHeight / h;
+  const { dx, dz } = screenOffsetToWorld(fx - w / 2, fy - h / 2, heading);
   return {
-    centerX: wx - (fx - w / 2) * wppAfter,
-    centerZ: wz - (fy - h / 2) * wppAfter,
+    centerX: wx - dx * wppAfter,
+    centerZ: wz - dz * wppAfter,
     viewHeight,
+    heading,
+  };
+}
+
+/**
+ * 焦点 (fx,fy)（canvas 相対 CSS px）の地点を固定したまま heading を dHeading だけ回した
+ * 新しいビュー状態。Google Maps の 2 本指ツイスト（指の下が動かないまま地図が回る）挙動。
+ * viewHeight は変えない。
+ */
+export function rotateViewAround(
+  state: ViewState,
+  dHeading: number,
+  fx: number,
+  fy: number,
+  w: number,
+  h: number,
+): ViewState {
+  // 回転前に焦点の下にあったワールド地点を、回転後も同じ画面位置に置き直す。
+  const { x: wx, z: wz } = screenToWorld(state, fx, fy, w, h);
+  const heading = (state.heading ?? 0) + dHeading;
+  const wpp = state.viewHeight / h;
+  const { dx, dz } = screenOffsetToWorld(fx - w / 2, fy - h / 2, heading);
+  return {
+    centerX: wx - dx * wpp,
+    centerZ: wz - dz * wpp,
+    viewHeight: state.viewHeight,
+    heading,
+  };
+}
+
+/**
+ * heading だけ回した表示矩形（画面半幅 halfX×halfZ）を、軸そろいのワールド矩形で覆う
+ * ための半幅 [halfX,halfZ]。回転した矩形の外接軸並行 AABB。可視タイル選択の範囲に使う
+ * （回転時は角のぶん広がる。heading=0 なら入力そのまま）。
+ */
+export function viewAabbHalfExtents(
+  halfX: number,
+  halfZ: number,
+  heading: number,
+): { halfX: number; halfZ: number } {
+  const c = Math.abs(Math.cos(heading));
+  const s = Math.abs(Math.sin(heading));
+  return {
+    halfX: halfX * c + halfZ * s,
+    halfZ: halfX * s + halfZ * c,
   };
 }
 

@@ -14,7 +14,7 @@
  */
 import type { HeightMapFunc } from "../../algorithm/height";
 import { bakeTileTexture } from "./tile-bake";
-import { selectTileLevel, tileVisible } from "./tile-lod";
+import { selectTileLevel, tileVisible, viewAabbHalfExtents } from "./tile-lod";
 
 /** レベル0タイルのワールド長。レベルが1上がるごとに半分になる。 */
 const BASE_TILE_WORLD = 256;
@@ -56,6 +56,8 @@ export interface PyramidView {
   drawingBufferHeight: number;
   /** ビューのアスペクト比（幅/高さ）。可視範囲の横幅算出に使う。 */
   aspect: number;
+  /** 地図の回転角（ラジアン）。回転時は可視範囲を外接 AABB まで広げる。省略時 0。 */
+  heading?: number;
 }
 
 /** このフレームの描画結果：選んだレベルと、粗→細の順に並べた可視タイル。 */
@@ -224,12 +226,15 @@ export function createTilePyramid(
       );
       const tileWorld = BASE_TILE_WORLD / 2 ** level;
 
+      // 回転していると表示矩形は傾くので、外接する軸並行 AABB で可視範囲を取る
+      // （heading=0 なら halfX,halfY のまま）。角のぶん余分に焼くが穴は開かない。
+      const aabb = viewAabbHalfExtents(halfX, halfY, view.heading ?? 0);
       const margin = TILE_MARGIN * tileWorld;
       const b: Bounds = {
-        ax0: view.centerX - halfX - margin,
-        ax1: view.centerX + halfX + margin,
-        az0: view.centerZ - halfY - margin,
-        az1: view.centerZ + halfY + margin,
+        ax0: view.centerX - aabb.halfX - margin,
+        ax1: view.centerX + aabb.halfX + margin,
+        az0: view.centerZ - aabb.halfZ - margin,
+        az1: view.centerZ + aabb.halfZ + margin,
       };
 
       allPresent = generateMissing(
