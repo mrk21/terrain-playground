@@ -1,3 +1,4 @@
+import { clamp } from "../core/math/scalar";
 import {
   type HeightMapFunc,
   makeFbmHeightMapFunc,
@@ -118,6 +119,22 @@ export const GENERATORS: HeightMapGenerator[] = [
       makeFbmHeightMapFunc({ seed, zoom, octaves, lacunarity, gain }),
   },
 ];
+
+/**
+ * テキスト入力/スライダーの生文字列を、その ParamDef に沿った有効値へ整える。
+ * [min, max] にクランプし step グリッド（min 基点）へスナップして、スライダー位置と
+ * 表示を一致させたうえで端数誤差を丸める。数値として読めなければ（空欄含む）null を
+ * 返し、呼び出し側は現在値を保つ。
+ */
+export function parseParamValue(raw: string, p: ParamDef): number | null {
+  if (raw.trim() === "") return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return null;
+  const clamped = clamp(n, p.min, p.max);
+  const snapped = p.min + Math.round((clamped - p.min) / p.step) * p.step;
+  // 0.1 刻みなどで出る 2.4000000000000004 のような端数を落とす。
+  return Math.round(clamp(snapped, p.min, p.max) * 1e4) / 1e4;
+}
 
 /** id からジェネレータを引く（無ければ先頭を返す）。 */
 export function generatorById(id: string | null): HeightMapGenerator {

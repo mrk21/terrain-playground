@@ -4,6 +4,7 @@ import {
   generatorById,
   type HeightMapGenerator,
   type ParamDef,
+  parseParamValue,
 } from "../../algorithm/generators";
 import type { HeightMapFunc } from "../../algorithm/height";
 import { makeSeed } from "../../algorithm/noise/hash-function";
@@ -36,9 +37,33 @@ const VIEWS: { key: ViewKey; label: string }[] = [
   { key: "2d", label: "地形2D" },
 ];
 
-/** 浮動小数の表示・保存用に程よく丸める（スライダーの刻み誤差を消す）。 */
-function round(n: number): number {
-  return Math.round(n * 1e4) / 1e4;
+/**
+ * ParamDef 用の数値入力欄（テキストボックス）を作る。確定（change）時に入力を
+ * parseParamValue で整え、無効なら現在値へ戻す。整えた値は values に書き戻し、
+ * 表示にも反映してから onChange に渡す（呼び出し側でスライダー同期・反映を行う）。
+ */
+function makeNumberInput(
+  p: ParamDef,
+  values: Record<string, number>,
+  onChange: (n: number) => void,
+): HTMLInputElement {
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = String(p.min);
+  input.max = String(p.max);
+  input.step = String(p.step);
+  input.value = String(values[p.key]);
+  input.addEventListener("change", () => {
+    const n = parseParamValue(input.value, p);
+    if (n === null) {
+      input.value = String(values[p.key]); // 無効入力（空欄・非数）は現在値へ戻す。
+      return;
+    }
+    values[p.key] = n;
+    input.value = String(n); // クランプ/スナップ後の値を表示へ反映。
+    onChange(n);
+  });
+  return input;
 }
 
 export function initControls(opts: ControlsOptions): ControlsHandle {
@@ -150,19 +175,8 @@ export function initControls(opts: ControlsOptions): ControlsHandle {
     row.appendChild(label);
 
     if (p.kind === "seed") {
-      const input = document.createElement("input");
-      input.type = "number";
-      input.min = String(p.min);
-      input.max = String(p.max);
-      input.step = "1";
-      input.value = String(values[p.key]);
+      const input = makeNumberInput(p, values, commitHeight);
       input.className = "param-seed";
-      input.addEventListener("change", () => {
-        const n = Math.floor(Number(input.value));
-        if (!Number.isFinite(n)) return;
-        values[p.key] = n;
-        commitHeight();
-      });
 
       const dice = document.createElement("button");
       dice.className = "dice";
@@ -178,26 +192,31 @@ export function initControls(opts: ControlsOptions): ControlsHandle {
       row.appendChild(input);
       row.appendChild(dice);
     } else {
-      const input = document.createElement("input");
-      input.type = "range";
-      input.min = String(p.min);
-      input.max = String(p.max);
-      input.step = String(p.step);
-      input.value = String(values[p.key]);
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.min = String(p.min);
+      slider.max = String(p.max);
+      slider.step = String(p.step);
+      slider.value = String(values[p.key]);
 
-      const valEl = document.createElement("span");
-      valEl.className = "param-value";
-      valEl.textContent = String(values[p.key]);
+      // 値の表示はテキストボックスにして、直接入力でも変更できるようにする。
+      // スライダーとテキストボックスは互いの操作で同期する。
+      const field = makeNumberInput(p, values, (n) => {
+        slider.value = String(n);
+        commitHeight();
+      });
+      field.className = "param-value";
 
-      input.addEventListener("input", () => {
-        const n = round(Number(input.value));
+      slider.addEventListener("input", () => {
+        const n = parseParamValue(slider.value, p);
+        if (n === null) return;
         values[p.key] = n;
-        valEl.textContent = String(n);
+        field.value = String(n);
         commitHeight();
       });
 
-      row.appendChild(input);
-      row.appendChild(valEl);
+      row.appendChild(slider);
+      row.appendChild(field);
     }
     return row;
   };

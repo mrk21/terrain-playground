@@ -132,11 +132,18 @@ body {
   touch-action: manipulation;
 }
 
+/* スライダー横の値。表示だけでなく直接入力もできるテキストボックス。 */
 .param-value {
-  min-width: 36px;
-  text-align: right;
-  font-family: ui-monospace, monospace;
+  width: 56px;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  border: 1px solid #3a3a44;
+  border-radius: 4px;
+  background: #1a1a22;
   color: #e8e8ef;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  text-align: right;
 }
 
 .param-seed {
