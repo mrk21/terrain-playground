@@ -29,6 +29,23 @@ export interface GestureTarget {
   onTilt?(dy: number): void;
   /** ホイール / トラックパッドズーム。deltaY と焦点 fx,fy。 */
   onWheelZoom?(deltaY: number, fx: number, fy: number): void;
+  /**
+   * 手動のカメラ操作が始まった合図（pointerdown / wheel で発火）。プログラムによる
+   * カメラアニメーション（リセットの滑らかな遷移など）を、指で触った瞬間に中断させる
+   * ために使う。慣性の滑走（onStep 由来の再生）では発火しない＝人の入力とは区別できる。
+   */
+  onUserInput?(): void;
+}
+
+/** attachGestures のハンドル。取り外しと、進行中の慣性の停止。 */
+export interface GestureHandle {
+  /** イベントリスナを外し、慣性を止める。 */
+  detach(): void;
+  /**
+   * 進行中の慣性の滑走を止める。プログラムからカメラ操作（リセットの遷移）を割り込ませる
+   * とき、残っていた滑走が遷移の終了後に再開して家に着いた地図が滑り出すのを防ぐ。
+   */
+  cancelInertia(): void;
 }
 
 interface Pt {
@@ -53,11 +70,11 @@ const POST_PINCH_DRAG_SLOP = 128;
 /** ダブルタップ／2 本指タップ 1 回ぶんのズーム倍率。 */
 const STEP_ZOOM = 2;
 
-/** canvas にジェスチャを取り付ける。戻り値を呼ぶと取り外す。 */
+/** canvas にジェスチャを取り付ける。戻り値のハンドルで取り外し・慣性停止ができる。 */
 export function attachGestures(
   canvas: HTMLCanvasElement,
   target: GestureTarget,
-): () => void {
+): GestureHandle {
   const pointers = new Map<number, Pt>();
   let mode: "none" | "drag" | "pinch" | "zoom" = "none";
   let shift = false;
@@ -149,6 +166,8 @@ export function attachGestures(
   const onPointerDown = (e: PointerEvent): void => {
     // 新しい接触は進行中の慣性を止める（滑っている地図を指で押さえる）。
     inertia.cancel();
+    // 手動操作の開始＝進行中のプログラムアニメーション（リセットの遷移）を中断させる。
+    target.onUserInput?.();
     const p = rel(e);
     pointers.set(e.pointerId, p);
     canvas.setPointerCapture(e.pointerId);
@@ -268,6 +287,7 @@ export function attachGestures(
 
   const onWheel = (e: WheelEvent): void => {
     e.preventDefault();
+    target.onUserInput?.(); // ホイールズームも手動操作＝リセット遷移を中断させる。
     const p = rel(e);
     target.onWheelZoom?.(e.deltaY, p.x, p.y);
   };
@@ -284,15 +304,20 @@ export function attachGestures(
   canvas.addEventListener("gesturechange", onSafariGesture);
   canvas.addEventListener("gestureend", onSafariGesture);
 
-  return () => {
-    inertia.cancel();
-    canvas.removeEventListener("pointerdown", onPointerDown);
-    canvas.removeEventListener("pointermove", onPointerMove);
-    canvas.removeEventListener("pointerup", onPointerUp);
-    canvas.removeEventListener("pointercancel", onPointerUp);
-    canvas.removeEventListener("wheel", onWheel);
-    canvas.removeEventListener("gesturestart", onSafariGesture);
-    canvas.removeEventListener("gesturechange", onSafariGesture);
-    canvas.removeEventListener("gestureend", onSafariGesture);
+  return {
+    detach() {
+      inertia.cancel();
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("pointercancel", onPointerUp);
+      canvas.removeEventListener("wheel", onWheel);
+      canvas.removeEventListener("gesturestart", onSafariGesture);
+      canvas.removeEventListener("gesturechange", onSafariGesture);
+      canvas.removeEventListener("gestureend", onSafariGesture);
+    },
+    cancelInertia() {
+      inertia.cancel();
+    },
   };
 }
