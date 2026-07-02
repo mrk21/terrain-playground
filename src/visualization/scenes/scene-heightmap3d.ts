@@ -7,11 +7,13 @@ import fragSrc from "../shaders/terrain.frag?raw";
 import vertSrc from "../shaders/terrain.vert?raw";
 import { extractFrustumPlanes } from "./culling";
 import type { Scene } from "./scene";
-import { eyePosition, groundUnder } from "./terrain-camera";
+import { eyePosition, groundUnder, raycastSurface } from "./terrain-camera";
 import { createTerrainTiles } from "./terrain-tiles";
 import {
+  BOX_MAX_Y,
   FAR,
   FOV,
+  HEIGHT_SCALE,
   MAX_DISTANCE,
   MIN_DISTANCE,
   TARGET_Y,
@@ -146,12 +148,22 @@ export function createSceneHeightmap3D(
       settled = tiles.settled();
     },
     worldAt(screenX, screenY) {
-      // 画面の点が注視点高さ TARGET_Y の水平面に刺さる (x,z) を出し、その標高を引く。
-      // 厳密な地表メッシュへのレイキャストではないので、真上ビューでは正確、
-      // 傾けると視差ぶんの誤差が出る（HUD の目安としては十分）。
+      // カメラからマウス方向へレイを飛ばし、実際の地表面（描画と同じく高さに
+      // HEIGHT_SCALE を掛けた面）との交点を求める。平面近似ではないので、斜めから
+      // 見てもマウス直下の地点を正しく返す。標高は色付け前の生の高さで表示する。
+      // FAR で打ち切り、描画されていない遠方（far クリップの先＝画面上は空）の
+      // 地形は拾わない——HUD と実際に見えている絵を一致させる。
       const cam = { yaw, pitch, fov: FOV, target };
       const viewport = { w: canvas.clientWidth, h: canvas.clientHeight };
-      const hit = groundUnder(cam, viewport, [screenX, screenY], distance);
+      const hit = raycastSurface(
+        cam,
+        viewport,
+        [screenX, screenY],
+        distance,
+        (x, z) => height(x, z) * HEIGHT_SCALE,
+        { minY: 0, maxY: BOX_MAX_Y },
+        FAR,
+      );
       if (!hit) return null;
       return { x: hit[0], z: hit[1], height: height(hit[0], hit[1]) };
     },
